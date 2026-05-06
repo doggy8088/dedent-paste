@@ -19,6 +19,8 @@ jobs:
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
 
       - name: Check formatting
         run: cargo fmt --check
@@ -26,13 +28,18 @@ jobs:
       - name: Run tests
         run: cargo test --locked
 
-      - name: Build release binary
-        run: cargo build --release --locked
+      - name: Build release binaries
+        run: |
+          cargo build --release --locked --target aarch64-apple-darwin
+          cargo build --release --locked --target x86_64-apple-darwin
 
       - name: Prepare release asset
         run: |
           mkdir -p dist
-          cp target/release/dedent-paste dist/dedent-paste
+          lipo -create \
+            target/aarch64-apple-darwin/release/dedent-paste \
+            target/x86_64-apple-darwin/release/dedent-paste \
+            -output dist/dedent-paste
           chmod 755 dist/dedent-paste
 
       - name: Create GitHub Release
