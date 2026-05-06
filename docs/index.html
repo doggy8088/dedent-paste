@@ -37,9 +37,13 @@
         margin: 0;
         overflow-x: hidden;
         color: var(--paper);
-        background:
-          image-set(url("assets/hero-aurora.webp") type("image/webp")) center top / min(100%, 1180px) auto no-repeat,
+        background-color: #030807;
+        background-image:
+          url("assets/hero-aurora.webp"),
           linear-gradient(135deg, #030807 0%, #07100d 50%, #0c1712 100%);
+        background-position: center top, center;
+        background-repeat: no-repeat, no-repeat;
+        background-size: min(100%, 1180px) auto, cover;
         font-family: "JetBrains Mono", monospace;
       }
 
@@ -58,6 +62,17 @@
 
       a {
         color: inherit;
+      }
+
+      a:focus-visible,
+      button:focus-visible {
+        outline: 2px solid var(--mint);
+        outline-offset: 4px;
+      }
+
+      ::selection {
+        color: var(--ink);
+        background: var(--acid);
       }
 
       .shell {
@@ -92,6 +107,19 @@
         border-radius: 11px;
         box-shadow: 0 0 28px rgba(201, 255, 74, 0.24);
         place-items: center;
+      }
+
+      .mark-badge::after {
+        width: 7px;
+        height: 7px;
+        content: "";
+        background: var(--ink);
+        border-radius: 999px;
+        box-shadow: 10px 0 0 var(--ink), 20px 0 0 var(--ink);
+      }
+
+      .mark-badge {
+        font-size: 0;
       }
 
       .nav-links {
@@ -141,6 +169,7 @@
         font-weight: 400;
         line-height: 0.82;
         letter-spacing: -0.07em;
+        text-wrap: balance;
       }
 
       h1 em {
@@ -155,6 +184,32 @@
         color: var(--paper-soft);
         font-size: clamp(17px, 2vw, 22px);
         line-height: 1.65;
+      }
+
+      .trust-strip {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 1px;
+        margin-top: 18px;
+        overflow: hidden;
+        background: var(--line);
+        border: 1px solid var(--line);
+        border-radius: 20px;
+      }
+
+      .trust-strip span {
+        display: grid;
+        gap: 5px;
+        padding: 14px;
+        color: var(--muted);
+        font-size: 11px;
+        line-height: 1.4;
+        background: rgba(3, 8, 7, 0.72);
+      }
+
+      .trust-strip strong {
+        color: var(--paper);
+        font-size: 12px;
       }
 
       .install-card {
@@ -212,6 +267,10 @@
         transform: translateY(-1px);
       }
 
+      .copy.copied {
+        background: var(--mint);
+      }
+
       .hero-actions {
         display: flex;
         flex-wrap: wrap;
@@ -230,6 +289,11 @@
         text-decoration: none;
         border: 1px solid var(--line);
         border-radius: 999px;
+        transition: transform 180ms ease, border-color 180ms ease, background 180ms ease;
+      }
+
+      .button:hover {
+        transform: translateY(-2px);
       }
 
       .button.primary {
@@ -268,6 +332,15 @@
         border-radius: 28px;
         box-shadow: 0 28px 110px rgba(0, 0, 0, 0.44);
         backdrop-filter: blur(22px);
+      }
+
+      .demo-card::after {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        content: "";
+        border-radius: inherit;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
       }
 
       .demo-card.before {
@@ -345,7 +418,32 @@
         display: grid;
         grid-template-columns: repeat(3, 1fr);
         gap: 16px;
-        padding: 0 0 86px;
+        padding: 0 0 28px;
+      }
+
+      .section-intro {
+        display: grid;
+        grid-template-columns: minmax(0, 0.9fr) minmax(260px, 0.55fr);
+        gap: 28px;
+        align-items: end;
+        padding: 0 0 22px;
+      }
+
+      .section-intro h2 {
+        margin: 0;
+        font-family: "Instrument Serif", Georgia, serif;
+        font-size: clamp(42px, 7vw, 84px);
+        font-weight: 400;
+        line-height: 0.95;
+        letter-spacing: -0.06em;
+        text-wrap: balance;
+      }
+
+      .section-intro p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.75;
       }
 
       .feature {
@@ -354,6 +452,23 @@
         background: rgba(255, 242, 199, 0.06);
         border: 1px solid var(--line);
         border-radius: 26px;
+        transition: transform 180ms ease, border-color 180ms ease, background 180ms ease;
+      }
+
+      .feature:hover {
+        background: rgba(255, 242, 199, 0.085);
+        border-color: rgba(201, 255, 74, 0.32);
+        transform: translateY(-4px);
+      }
+
+      .feature-index {
+        display: block;
+        margin-bottom: 28px;
+        color: var(--acid);
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.14em;
       }
 
       .feature strong {
@@ -368,6 +483,22 @@
         color: var(--muted);
         font-size: 14px;
         line-height: 1.7;
+      }
+
+      .use-cases {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        padding: 0 0 76px;
+      }
+
+      .use-cases span {
+        padding: 10px 13px;
+        color: var(--paper-soft);
+        font-size: 12px;
+        background: rgba(113, 255, 213, 0.07);
+        border: 1px solid rgba(113, 255, 213, 0.16);
+        border-radius: 999px;
       }
 
       .footer {
@@ -446,6 +577,11 @@
           padding-top: 34px;
         }
 
+        .section-intro,
+        .trust-strip {
+          grid-template-columns: 1fr;
+        }
+
         .demo {
           min-height: 630px;
         }
@@ -485,12 +621,63 @@
           grid-template-columns: 1fr;
         }
 
+        .command code {
+          white-space: normal;
+          word-break: break-word;
+        }
+
         .copy {
           width: 100%;
         }
 
         .hero {
           gap: 28px;
+        }
+      }
+
+      @media (prefers-reduced-motion: no-preference) {
+        .eyebrow,
+        h1,
+        .lead,
+        .install-card,
+        .trust-strip,
+        .demo-card,
+        .section-intro,
+        .feature,
+        .use-cases,
+        .footer {
+          animation: rise-in 680ms ease both;
+        }
+
+        h1 {
+          animation-delay: 60ms;
+        }
+
+        .lead,
+        .demo-card.before {
+          animation-delay: 120ms;
+        }
+
+        .install-card,
+        .demo-card.after {
+          animation-delay: 180ms;
+        }
+
+        .trust-strip,
+        .feature:nth-child(2) {
+          animation-delay: 240ms;
+        }
+
+        @keyframes rise-in {
+          from {
+            opacity: 0;
+            translate: 0 18px;
+          }
+
+          to {
+            opacity: 1;
+            translate: 0 0;
+          }
         }
       }
     </style>
@@ -503,9 +690,10 @@
           <span>dedent-paste</span>
         </a>
         <div class="nav-links">
+          <a href="#install">Install</a>
+          <a href="#features">Features</a>
           <a href="https://github.com/doggy8088/dedent-paste">GitHub</a>
           <a href="https://github.com/doggy8088/dedent-paste/releases">Releases</a>
-          <a href="https://karabiner-elements.pqrs.org/">Karabiner-Elements</a>
         </div>
       </nav>
 
@@ -519,7 +707,7 @@
           </p>
 
           <div class="install-card" aria-label="Install command">
-            <div class="command">
+            <div id="install" class="command">
               <code id="install-command">curl -fsSL https://raw.githubusercontent.com/doggy8088/dedent-paste/main/install.sh | bash</code>
               <button class="copy" type="button" data-copy-target="install-command">Copy</button>
             </div>
@@ -528,6 +716,12 @@
           <div class="hero-actions">
             <a class="button primary" href="https://github.com/doggy8088/dedent-paste/releases/latest/download/dedent-paste">Download executable</a>
             <a class="button secondary" href="https://github.com/doggy8088/dedent-paste">View source</a>
+          </div>
+
+          <div class="trust-strip" aria-label="Project facts">
+            <span><strong>Universal binary</strong>Apple Silicon + Intel macOS</span>
+            <span><strong>One-line setup</strong>Installs binary and Karabiner rule</span>
+            <span><strong>Local clipboard</strong>No server, no upload, no tracking</span>
           </div>
         </div>
 
@@ -567,20 +761,40 @@
         </div>
       </section>
 
+      <section id="features" class="section-intro" aria-labelledby="features-title">
+        <h2 id="features-title">A tiny tool for oversized paste moments.</h2>
+        <p>
+          The page should feel like the product: fast, precise, and made for people who move text all day.
+          One shortcut removes the messy shared indent while leaving your normal Command+V untouched.
+        </p>
+      </section>
+
       <section class="features" aria-label="Highlights">
         <article class="feature">
+          <span class="feature-index">01 / Shortcut</span>
           <strong>One key chord</strong>
           <p>Karabiner-Elements maps Option+V to the helper, so dedented paste feels like a native paste command.</p>
         </article>
         <article class="feature">
+          <span class="feature-index">02 / Release</span>
           <strong>Single executable</strong>
           <p>GitHub Releases publish one universal macOS binary named dedent-paste for Apple Silicon and Intel Macs.</p>
         </article>
         <article class="feature">
+          <span class="feature-index">03 / Clipboard</span>
           <strong>Plain text, UTF-8 safe</strong>
           <p>The clipboard is read as text, written back as UTF-8, and pasted through macOS System Events.</p>
         </article>
       </section>
+
+      <div class="use-cases" aria-label="Common paste targets">
+        <span>code blocks</span>
+        <span>Markdown</span>
+        <span>LLM prompts</span>
+        <span>terminal snippets</span>
+        <span>issue comments</span>
+        <span>documentation</span>
+      </div>
 
       <footer class="footer">
         <div>
@@ -612,11 +826,20 @@
       for (const button of document.querySelectorAll("[data-copy-target]")) {
         button.addEventListener("click", async () => {
           const target = document.getElementById(button.dataset.copyTarget);
-          await navigator.clipboard.writeText(target.textContent);
-          button.textContent = "Copied";
-          setTimeout(() => {
-            button.textContent = "Copy";
-          }, 1400);
+          try {
+            await navigator.clipboard.writeText(target.textContent);
+            button.textContent = "Copied";
+            button.classList.add("copied");
+            setTimeout(() => {
+              button.textContent = "Copy";
+              button.classList.remove("copied");
+            }, 1400);
+          } catch (error) {
+            button.textContent = "Failed";
+            setTimeout(() => {
+              button.textContent = "Copy";
+            }, 1400);
+          }
         });
       }
     </script>
