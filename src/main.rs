@@ -4,6 +4,8 @@ use std::process::{Command, Stdio};
 
 use dedent_paste::{dedent_text, text_from_bytes};
 
+const UTF8_LOCALE: &str = "en_US.UTF-8";
+
 fn main() {
     if let Err(error) = run() {
         eprintln!("dedent-paste: {error}");
@@ -23,7 +25,11 @@ fn run() -> Result<(), Box<dyn Error>> {
 }
 
 fn read_clipboard() -> Result<Vec<u8>, Box<dyn Error>> {
-    let output = Command::new("pbpaste").output()?;
+    let output = Command::new("pbpaste")
+        .args(["-Prefer", "txt"])
+        .env("LANG", UTF8_LOCALE)
+        .env("LC_CTYPE", UTF8_LOCALE)
+        .output()?;
 
     if !output.status.success() {
         return Err(format!("pbpaste failed with status {}", output.status).into());
@@ -33,7 +39,11 @@ fn read_clipboard() -> Result<Vec<u8>, Box<dyn Error>> {
 }
 
 fn write_clipboard(text: &str) -> Result<(), Box<dyn Error>> {
-    let mut child = Command::new("pbcopy").stdin(Stdio::piped()).spawn()?;
+    let mut child = Command::new("pbcopy")
+        .env("LANG", UTF8_LOCALE)
+        .env("LC_CTYPE", UTF8_LOCALE)
+        .stdin(Stdio::piped())
+        .spawn()?;
 
     let mut stdin = child.stdin.take().ok_or("failed to open pbcopy stdin")?;
     stdin.write_all(text.as_bytes())?;

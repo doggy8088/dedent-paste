@@ -1,34 +1,56 @@
 # dedent-paste
 
-`dedent-paste` is a macOS helper for Karabiner-Elements. It reads the current clipboard as plain text, removes the common leading space/tab prefix from non-blank lines, writes the transformed plain text back to the clipboard, then sends `Command+V`.
+`dedent-paste` 是供 Karabiner-Elements 使用的 macOS 輔助工具。它會以純文字讀取目前的剪貼簿內容，移除非空白行共通的前置空白／定位字元縮排，將轉換後的純文字寫回剪貼簿，然後送出 `Command+V`。
 
-The intended hotkey is `Command+Option+Shift+V`.
+預期使用的快捷鍵是 `Option+V`。
 
-## Build
+## 建置
 
 ```sh
 cargo build --release
 ```
 
-Karabiner is configured to call:
+Karabiner 已設定為呼叫：
 
 ```text
-/Users/will/projects/dedent-paste/target/release/dedent-paste
+$HOME/projects/dedent-paste/target/release/dedent-paste
 ```
 
-## Behavior
+## 行為
 
-- Blank and whitespace-only lines are ignored when calculating the minimum indentation.
-- Space and tab both count as one leading whitespace character.
-- The transformed plain text remains in the clipboard after pasting.
-- Paste is triggered with AppleScript/System Events, so macOS Accessibility permission may be required.
+- 計算最小縮排時，會忽略空白行與只包含空白字元的行。
+- 空格與定位字元都會計為一個前置空白字元。
+- 貼上後，轉換後的純文字會保留在剪貼簿中。
+- 貼上動作是透過 AppleScript/System Events 觸發，因此可能需要 macOS 輔助使用權限。
 
 ## Karabiner-Elements
 
-The complex modification asset is installed at:
+複合修改資源安裝於：
 
 ```text
 ~/.config/karabiner/assets/complex_modifications/paste-dedent-plain-text.json
 ```
 
-The active Karabiner profile in `~/.config/karabiner/karabiner.json` also contains the same `Command+Option+Shift+V` rule.
+`~/.config/karabiner/karabiner.json` 中作用中的 Karabiner 設定檔也包含相同的 `Option+V` 規則。
+
+作用中的規則內容：
+
+```json
+{
+  "description": "Option+V：執行 dedent-paste",
+  "manipulators": [
+    {
+      "from": {
+        "key_code": "v",
+        "modifiers": { "mandatory": ["option"] }
+      },
+      "to": [
+        {
+          "shell_command": "$HOME/projects/dedent-paste/target/release/dedent-paste"
+        }
+      ],
+      "type": "basic"
+    }
+  ]
+}
+```

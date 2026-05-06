@@ -2,5 +2,7 @@
 name = "dedent-paste"
 version = "0.1.0"
 edition = "2024"
+authors = ["Will 保哥"]
+license = "MIT"
 
 [dependencies]
