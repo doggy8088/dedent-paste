@@ -1,59 +1,59 @@
 # dedent-paste
 
-Paste indented text without the extra common indentation.
+貼上縮排文字時，自動移除多餘的共同縮排。
 
-`dedent-paste` is a small macOS helper for Karabiner-Elements. Press `Option+V`, and it will:
+`dedent-paste` 是一個搭配 Karabiner-Elements 使用的小型 macOS 工具。按下 `Option+V` 後，它會：
 
-1. Read the current clipboard as plain text.
-2. Remove the common leading spaces or tabs from non-blank lines.
-3. Paste the cleaned text with `Command+V`.
+1. 以純文字讀取目前剪貼簿內容。
+2. 移除非空白行前方共同的空白或 Tab 縮排。
+3. 透過 `Command+V` 貼上整理後的文字。
 
-## Quick install
+## 快速安裝
 
-Requirements: macOS, Karabiner-Elements, `curl`, and Python 3.
+需求：macOS、Karabiner-Elements、`curl` 與 Python 3。
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/doggy8088/dedent-paste/main/install.sh | bash
 ```
 
-After installation, press:
+安裝完成後，直接按：
 
 ```text
 Option+V
 ```
 
-The installer uses the latest cargo-dist release installer, installs `dedent-paste` to:
+安裝程式會使用最新的 cargo-dist Release installer，將 `dedent-paste` 安裝到：
 
 ```text
 ~/.local/bin/dedent-paste
 ```
 
-It also adds the `Option+V` rule to your active Karabiner-Elements profile and backs up your Karabiner configuration before changing it.
+它也會把 `Option+V` 規則加入目前啟用中的 Karabiner-Elements profile，並在修改前備份你的 Karabiner 設定。
 
-## Permissions
+## 權限設定
 
-Karabiner-Elements may need macOS Accessibility permission to trigger paste through System Events.
+Karabiner-Elements 可能需要 macOS「輔助使用」權限，才能透過 System Events 觸發貼上動作。
 
-Open:
+請開啟：
 
 ```text
-System Settings > Privacy & Security > Accessibility
+系統設定 > 隱私權與安全性 > 輔助使用
 ```
 
-Then make sure Karabiner-Elements is allowed.
+確認 Karabiner-Elements 已被允許。
 
-## Related links
+## 相關連結
 
 - [Karabiner-Elements](https://karabiner-elements.pqrs.org/)
-- [Karabiner-Elements manual](https://karabiner-elements.pqrs.org/docs/)
+- [Karabiner-Elements 使用手冊](https://karabiner-elements.pqrs.org/docs/)
 - [Karabiner complex modifications](https://karabiner-elements.pqrs.org/docs/manual/configuration/configure-complex-modifications/)
-- [GitHub Releases for dedent-paste](https://github.com/doggy8088/dedent-paste/releases)
+- [dedent-paste GitHub Releases](https://github.com/doggy8088/dedent-paste/releases)
 - [cargo-dist](https://opensource.axo.dev/cargo-dist/)
-- [macOS Accessibility permission guide](https://support.apple.com/guide/mac-help/allow-accessibility-apps-to-access-your-mac-mh43185/mac)
+- [macOS 輔助使用權限說明](https://support.apple.com/guide/mac-help/allow-accessibility-apps-to-access-your-mac-mh43185/mac)
 
-## More information
+## 更多資訊
 
-- Website: [dedent-paste GitHub Pages](https://dedent-paste.gh.miniasp.com/)
-- Development notes: [DEVELOPMENT.md](DEVELOPMENT.md)
-- Changelog: [CHANGELOG.md](CHANGELOG.md)
-- License: [MIT](LICENSE)
+- 網站：[dedent-paste GitHub Pages](https://dedent-paste.gh.miniasp.com/)
+- 開發筆記：[DEVELOPMENT.md](DEVELOPMENT.md)
+- 變更紀錄：[CHANGELOG.md](CHANGELOG.md)
+- 授權：[MIT](LICENSE)
