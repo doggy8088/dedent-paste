@@ -371,18 +371,67 @@
       }
 
       .footer {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 14px;
-        justify-content: space-between;
-        padding: 30px 0 44px;
-        color: var(--muted);
+        display: grid;
+        gap: 24px;
+        padding: 40px 0 44px;
+        color: var(--paper-soft);
         border-top: 1px solid var(--line);
       }
 
       .footer a {
         color: var(--paper-soft);
         text-decoration: none;
+      }
+
+      .footer-kicker {
+        display: block;
+        margin-bottom: 12px;
+        color: var(--acid);
+        font-size: 12px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.14em;
+      }
+
+      .footer-title {
+        display: block;
+        max-width: 880px;
+        font-family: "Instrument Serif", Georgia, serif;
+        font-size: clamp(30px, 5vw, 58px);
+        font-weight: 400;
+        line-height: 1;
+        letter-spacing: -0.05em;
+      }
+
+      .footer-copy {
+        max-width: 760px;
+        margin: 16px 0 0;
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.8;
+      }
+
+      .footer-links,
+      .footer-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px 18px;
+        align-items: center;
+      }
+
+      .footer-links a {
+        padding: 9px 12px;
+        font-size: 12px;
+        font-weight: 700;
+        background: rgba(255, 242, 199, 0.07);
+        border: 1px solid var(--line);
+        border-radius: 999px;
+      }
+
+      .footer-meta {
+        justify-content: space-between;
+        color: var(--muted);
+        font-size: 12px;
       }
 
       @media (max-width: 900px) {
@@ -534,14 +583,28 @@
       </section>
 
       <footer class="footer">
-        <span>MIT licensed. Made for people who paste a lot.</span>
-        <span>
+        <div>
+          <span class="footer-kicker">Paste clean, keep the source intact</span>
+          <strong class="footer-title">For snippets, Markdown, prompts, and notes that need to move without extra indentation.</strong>
+          <p class="footer-copy">
+            dedent-paste only changes the clipboard text you paste with Option+V. Keep the original source when exact
+            indentation matters, and allow Karabiner-Elements in macOS Accessibility so the paste automation can run.
+          </p>
+        </div>
+        <div class="footer-links" aria-label="Project links">
           <a href="https://github.com/doggy8088/dedent-paste/blob/main/README.md">README</a>
-          /
           <a href="https://github.com/doggy8088/dedent-paste/blob/main/DEVELOPMENT.md">Development</a>
-          /
           <a href="https://github.com/doggy8088/dedent-paste/blob/main/CHANGELOG.md">Changelog</a>
-        </span>
+          <a href="https://github.com/doggy8088/dedent-paste">GitHub</a>
+        </div>
+        <div class="footer-meta">
+          <span>Copyright © 2026 Will 保哥</span>
+          <span>
+            本站由
+            <a href="https://www.facebook.com/will.fans/" target="_blank" rel="noopener noreferrer">Will 保哥的技術交流中心</a>
+            設計、開發與維護
+          </span>
+        </div>
       </footer>
     </main>
 
