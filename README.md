@@ -4,6 +4,14 @@
 
 預期使用的快捷鍵是 `Option+V`。
 
+## 安裝
+
+```sh
+./install.sh
+```
+
+安裝腳本會建置 release binary、安裝 Karabiner complex modification asset，並將 `Option+V` 規則加入目前作用中的 Karabiner profile。
+
 ## 建置
 
 ```sh
