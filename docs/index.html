@@ -1,0 +1,555 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="dedent-paste removes common indentation from your clipboard and pastes clean text with Option+V on macOS.">
+    <title>dedent-paste - Option+V, cleaned</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+      :root {
+        color-scheme: dark;
+        --ink: #07100d;
+        --panel: rgba(9, 24, 20, 0.72);
+        --paper: #fff2c7;
+        --paper-soft: rgba(255, 242, 199, 0.76);
+        --muted: rgba(255, 242, 199, 0.58);
+        --acid: #c9ff4a;
+        --mint: #71ffd5;
+        --ember: #ff8a3d;
+        --line: rgba(255, 242, 199, 0.16);
+        --shadow: rgba(0, 0, 0, 0.48);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        min-height: 100vh;
+        margin: 0;
+        overflow-x: hidden;
+        color: var(--paper);
+        background:
+          radial-gradient(circle at 16% 12%, rgba(113, 255, 213, 0.2), transparent 28rem),
+          radial-gradient(circle at 84% 8%, rgba(255, 138, 61, 0.18), transparent 26rem),
+          radial-gradient(circle at 60% 82%, rgba(201, 255, 74, 0.13), transparent 30rem),
+          linear-gradient(135deg, #030807 0%, #07100d 50%, #0c1712 100%);
+        font-family: "JetBrains Mono", monospace;
+      }
+
+      body::before {
+        position: fixed;
+        inset: 0;
+        z-index: -2;
+        pointer-events: none;
+        content: "";
+        background-image:
+          linear-gradient(rgba(255, 242, 199, 0.055) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(255, 242, 199, 0.045) 1px, transparent 1px);
+        background-size: 44px 44px;
+        mask-image: linear-gradient(to bottom, black, transparent 86%);
+      }
+
+      body::after {
+        position: fixed;
+        inset: 0;
+        z-index: -1;
+        pointer-events: none;
+        content: "";
+        opacity: 0.22;
+        background-image:
+          repeating-radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.6) 0 1px, transparent 1px 7px);
+        mix-blend-mode: overlay;
+      }
+
+      a {
+        color: inherit;
+      }
+
+      .shell {
+        width: min(1180px, calc(100% - 32px));
+        margin: 0 auto;
+      }
+
+      .nav {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 28px 0;
+      }
+
+      .mark {
+        display: inline-flex;
+        gap: 10px;
+        align-items: center;
+        color: var(--paper);
+        font-weight: 700;
+        letter-spacing: -0.04em;
+        text-decoration: none;
+      }
+
+      .mark-badge {
+        display: grid;
+        width: 34px;
+        height: 34px;
+        color: var(--ink);
+        background: var(--acid);
+        border: 1px solid rgba(255, 255, 255, 0.35);
+        border-radius: 11px;
+        box-shadow: 0 0 28px rgba(201, 255, 74, 0.24);
+        place-items: center;
+      }
+
+      .nav-links {
+        display: flex;
+        gap: 18px;
+        align-items: center;
+      }
+
+      .nav-links a {
+        color: var(--muted);
+        font-size: 13px;
+        text-decoration: none;
+      }
+
+      .nav-links a:hover {
+        color: var(--paper);
+      }
+
+      .hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1.05fr) minmax(330px, 0.95fr);
+        gap: 56px;
+        align-items: center;
+        padding: 64px 0 88px;
+      }
+
+      .eyebrow {
+        display: inline-flex;
+        gap: 10px;
+        align-items: center;
+        padding: 8px 12px;
+        color: var(--mint);
+        font-size: 12px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.14em;
+        background: rgba(113, 255, 213, 0.08);
+        border: 1px solid rgba(113, 255, 213, 0.2);
+        border-radius: 999px;
+      }
+
+      h1 {
+        max-width: 830px;
+        margin: 22px 0 20px;
+        font-family: "Instrument Serif", Georgia, serif;
+        font-size: clamp(66px, 11vw, 142px);
+        font-weight: 400;
+        line-height: 0.82;
+        letter-spacing: -0.07em;
+      }
+
+      h1 em {
+        color: var(--acid);
+        font-style: italic;
+        text-shadow: 0 0 42px rgba(201, 255, 74, 0.2);
+      }
+
+      .lead {
+        max-width: 650px;
+        margin: 0 0 28px;
+        color: var(--paper-soft);
+        font-size: clamp(17px, 2vw, 22px);
+        line-height: 1.65;
+      }
+
+      .install-card {
+        position: relative;
+        padding: 18px;
+        overflow: hidden;
+        background: linear-gradient(145deg, rgba(255, 242, 199, 0.08), rgba(113, 255, 213, 0.06));
+        border: 1px solid var(--line);
+        border-radius: 24px;
+        box-shadow: 0 24px 80px var(--shadow);
+      }
+
+      .install-card::before {
+        position: absolute;
+        inset: 0 auto auto 0;
+        width: 160px;
+        height: 160px;
+        content: "";
+        background: radial-gradient(circle, rgba(201, 255, 74, 0.32), transparent 68%);
+        transform: translate(-50%, -50%);
+      }
+
+      .command {
+        position: relative;
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 14px;
+        align-items: center;
+        padding: 18px 18px 18px 20px;
+        background: rgba(0, 0, 0, 0.42);
+        border: 1px solid rgba(255, 242, 199, 0.18);
+        border-radius: 18px;
+      }
+
+      .command code {
+        overflow: auto;
+        color: var(--paper);
+        font-size: 13px;
+        line-height: 1.6;
+        white-space: nowrap;
+      }
+
+      .copy {
+        padding: 10px 14px;
+        color: var(--ink);
+        font: 700 12px "JetBrains Mono", monospace;
+        cursor: pointer;
+        background: var(--acid);
+        border: 0;
+        border-radius: 999px;
+        box-shadow: 0 0 28px rgba(201, 255, 74, 0.2);
+      }
+
+      .copy:hover {
+        transform: translateY(-1px);
+      }
+
+      .hero-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        align-items: center;
+        margin-top: 16px;
+      }
+
+      .button {
+        display: inline-flex;
+        gap: 10px;
+        align-items: center;
+        padding: 13px 16px;
+        font-size: 13px;
+        font-weight: 700;
+        text-decoration: none;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+      }
+
+      .button.primary {
+        color: var(--ink);
+        background: var(--mint);
+        border-color: transparent;
+      }
+
+      .button.secondary {
+        color: var(--paper);
+        background: rgba(255, 242, 199, 0.07);
+      }
+
+      .demo {
+        position: relative;
+        min-height: 560px;
+      }
+
+      .demo-card {
+        position: absolute;
+        width: min(100%, 500px);
+        padding: 18px;
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 28px;
+        box-shadow: 0 28px 110px rgba(0, 0, 0, 0.44);
+        backdrop-filter: blur(22px);
+      }
+
+      .demo-card.before {
+        top: 12px;
+        right: 26px;
+        transform: rotate(2.4deg);
+      }
+
+      .demo-card.after {
+        top: 265px;
+        left: 8px;
+        transform: rotate(-2deg);
+      }
+
+      .card-label {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 14px;
+        color: var(--muted);
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.16em;
+      }
+
+      pre {
+        min-height: 214px;
+        margin: 0;
+        overflow: hidden;
+        color: var(--paper-soft);
+        font-size: clamp(12px, 1.6vw, 15px);
+        line-height: 1.75;
+      }
+
+      .after pre {
+        color: var(--acid);
+      }
+
+      .keycap {
+        position: absolute;
+        top: 220px;
+        left: 50%;
+        display: grid;
+        width: 126px;
+        height: 126px;
+        color: var(--ink);
+        background:
+          linear-gradient(145deg, rgba(255, 255, 255, 0.8), rgba(201, 255, 74, 0.72)),
+          var(--acid);
+        border: 1px solid rgba(255, 255, 255, 0.5);
+        border-radius: 32px;
+        box-shadow: 0 18px 50px rgba(201, 255, 74, 0.18);
+        transform: translateX(-50%) rotate(8deg);
+        place-items: center;
+      }
+
+      .keycap strong {
+        display: block;
+        font-family: "Instrument Serif", Georgia, serif;
+        font-size: 44px;
+        line-height: 0.9;
+        letter-spacing: -0.06em;
+      }
+
+      .keycap span {
+        display: block;
+        margin-top: 4px;
+        font-size: 11px;
+        font-weight: 700;
+        text-align: center;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+      }
+
+      .features {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+        padding: 0 0 86px;
+      }
+
+      .feature {
+        min-height: 190px;
+        padding: 24px;
+        background: rgba(255, 242, 199, 0.06);
+        border: 1px solid var(--line);
+        border-radius: 26px;
+      }
+
+      .feature strong {
+        display: block;
+        margin-bottom: 14px;
+        color: var(--paper);
+        font-size: 15px;
+      }
+
+      .feature p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.7;
+      }
+
+      .footer {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 14px;
+        justify-content: space-between;
+        padding: 30px 0 44px;
+        color: var(--muted);
+        border-top: 1px solid var(--line);
+      }
+
+      .footer a {
+        color: var(--paper-soft);
+        text-decoration: none;
+      }
+
+      @media (max-width: 900px) {
+        .nav {
+          align-items: flex-start;
+          flex-direction: column;
+          gap: 18px;
+        }
+
+        .hero {
+          grid-template-columns: 1fr;
+          padding-top: 34px;
+        }
+
+        .demo {
+          min-height: 630px;
+        }
+
+        .demo-card.before,
+        .demo-card.after {
+          right: auto;
+          left: 0;
+          width: 100%;
+        }
+
+        .keycap {
+          top: 246px;
+        }
+
+        .features {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      @media (max-width: 560px) {
+        .shell {
+          width: min(100% - 22px, 1180px);
+        }
+
+        .nav-links {
+          flex-wrap: wrap;
+        }
+
+        .command {
+          grid-template-columns: 1fr;
+        }
+
+        .copy {
+          width: 100%;
+        }
+
+        .hero {
+          gap: 28px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="shell">
+      <nav class="nav" aria-label="Primary">
+        <a class="mark" href="#">
+          <span class="mark-badge">dv</span>
+          <span>dedent-paste</span>
+        </a>
+        <div class="nav-links">
+          <a href="https://github.com/doggy8088/dedent-paste">GitHub</a>
+          <a href="https://github.com/doggy8088/dedent-paste/releases">Releases</a>
+          <a href="https://karabiner-elements.pqrs.org/">Karabiner-Elements</a>
+        </div>
+      </nav>
+
+      <section class="hero">
+        <div>
+          <span class="eyebrow">macOS clipboard tool</span>
+          <h1>Paste clean. <em>Stay in flow.</em></h1>
+          <p class="lead">
+            Option+V strips the common indentation from your clipboard and pastes the result as plain text.
+            Perfect for moving code, notes, prompts, and Markdown between apps without dragging extra whitespace along.
+          </p>
+
+          <div class="install-card" aria-label="Install command">
+            <div class="command">
+              <code id="install-command">curl -fsSL https://raw.githubusercontent.com/doggy8088/dedent-paste/main/install.sh | bash</code>
+              <button class="copy" type="button" data-copy-target="install-command">Copy</button>
+            </div>
+          </div>
+
+          <div class="hero-actions">
+            <a class="button primary" href="https://github.com/doggy8088/dedent-paste/releases/latest/download/dedent-paste">Download executable</a>
+            <a class="button secondary" href="https://github.com/doggy8088/dedent-paste">View source</a>
+          </div>
+        </div>
+
+        <div class="demo" aria-label="Before and after indentation demo">
+          <article class="demo-card before">
+            <div class="card-label">
+              <span>Clipboard before</span>
+              <span>copied from docs</span>
+            </div>
+            <pre><code>        fn paste() {
+            let text = clipboard.read();
+            let clean = dedent(text);
+            clipboard.write(clean);
+        }</code></pre>
+          </article>
+
+          <div class="keycap" aria-hidden="true">
+            <div>
+              <strong>V</strong>
+              <span>Option</span>
+            </div>
+          </div>
+
+          <article class="demo-card after">
+            <div class="card-label">
+              <span>Pasted after</span>
+              <span>dedented</span>
+            </div>
+            <pre><code>fn paste() {
+    let text = clipboard.read();
+    let clean = dedent(text);
+    clipboard.write(clean);
+}</code></pre>
+          </article>
+        </div>
+      </section>
+
+      <section class="features" aria-label="Highlights">
+        <article class="feature">
+          <strong>One key chord</strong>
+          <p>Karabiner-Elements maps Option+V to the helper, so dedented paste feels like a native paste command.</p>
+        </article>
+        <article class="feature">
+          <strong>Single executable</strong>
+          <p>GitHub Releases publish one universal macOS binary named dedent-paste for Apple Silicon and Intel Macs.</p>
+        </article>
+        <article class="feature">
+          <strong>Plain text, UTF-8 safe</strong>
+          <p>The clipboard is read as text, written back as UTF-8, and pasted through macOS System Events.</p>
+        </article>
+      </section>
+
+      <footer class="footer">
+        <span>MIT licensed. Made for people who paste a lot.</span>
+        <span>
+          <a href="https://github.com/doggy8088/dedent-paste/blob/main/README.md">README</a>
+          /
+          <a href="https://github.com/doggy8088/dedent-paste/blob/main/DEVELOPMENT.md">Development</a>
+          /
+          <a href="https://github.com/doggy8088/dedent-paste/blob/main/CHANGELOG.md">Changelog</a>
+        </span>
+      </footer>
+    </main>
+
+    <script>
+      for (const button of document.querySelectorAll("[data-copy-target]")) {
+        button.addEventListener("click", async () => {
+          const target = document.getElementById(button.dataset.copyTarget);
+          await navigator.clipboard.writeText(target.textContent);
+          button.textContent = "Copied";
+          setTimeout(() => {
+            button.textContent = "Copy";
+          }, 1400);
+        });
+      }
+    </script>
+  </body>
+</html>

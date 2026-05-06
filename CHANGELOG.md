@@ -9,6 +9,7 @@ All notable changes to this project are documented in this file.
 - Added this changelog.
 - Updated GitHub Actions to publish a single `dedent-paste` executable release asset.
 - Updated GitHub Actions to publish releases only when `Cargo.toml` package version changes.
+- Added GitHub Pages landing page and deployment workflow.
 
 ## 0.1.0
 

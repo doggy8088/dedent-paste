@@ -87,3 +87,13 @@ The one-line installer downloads:
 ```text
 https://github.com/doggy8088/dedent-paste/releases/latest/download/dedent-paste
 ```
+
+## GitHub Pages
+
+The GitHub Pages site is in:
+
+```text
+docs/
+```
+
+The `GitHub Pages` workflow deploys the static site on every push to `main`.

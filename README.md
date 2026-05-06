@@ -52,6 +52,7 @@ Then make sure Karabiner-Elements is allowed.
 
 ## More information
 
+- Website: [dedent-paste GitHub Pages](https://doggy8088.github.io/dedent-paste/)
 - Development notes: [DEVELOPMENT.md](DEVELOPMENT.md)
 - Changelog: [CHANGELOG.md](CHANGELOG.md)
 - License: [MIT](LICENSE)
