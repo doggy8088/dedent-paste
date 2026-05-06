@@ -6,7 +6,7 @@ repo_dir="$script_dir"
 description="Option+V：執行 dedent-paste"
 asset_path="$HOME/.config/karabiner/assets/complex_modifications/paste-dedent-plain-text.json"
 install_dir="${DEDENT_PASTE_INSTALL_DIR:-$HOME/.local/bin}"
-release_url="https://github.com/doggy8088/dedent-paste/releases/latest/download/dedent-paste"
+installer_url="https://github.com/doggy8088/dedent-paste/releases/latest/download/dedent-paste-installer.sh"
 
 if ! command -v python3 >/dev/null 2>&1; then
   echo "error: python3 is required to update Karabiner JSON files" >&2
@@ -29,8 +29,13 @@ else
 
   mkdir -p "$install_dir"
   binary_path="$install_dir/dedent-paste"
-  curl --fail --location --retry 3 "$release_url" --output "$binary_path"
-  chmod 755 "$binary_path"
+  curl --fail --location --retry 3 --silent --show-error "$installer_url" \
+    | DEDENT_PASTE_INSTALL_DIR="$install_dir" INSTALLER_NO_MODIFY_PATH=1 sh -s -- --quiet
+
+  if [[ ! -x "$binary_path" ]]; then
+    echo "error: cargo-dist installer did not create $binary_path" >&2
+    exit 1
+  fi
 fi
 
 BINARY_PATH="$binary_path" DESCRIPTION="$description" python3 <<'PY'

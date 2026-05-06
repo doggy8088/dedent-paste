@@ -12,7 +12,7 @@ When `./install.sh` is run from a source checkout, it builds the local source an
 <repo>/target/release/dedent-paste
 ```
 
-When `install.sh` is run from the one-line installer in `README.md`, it downloads the latest release executable and configures Karabiner-Elements to call:
+When `install.sh` is run from the one-line installer in `README.md`, it runs the latest cargo-dist shell installer and configures Karabiner-Elements to call:
 
 ```text
 $HOME/.local/bin/dedent-paste
@@ -68,25 +68,36 @@ If `karabiner_cli` is available, the installer validates the generated complex m
 
 ## CI/CD
 
-GitHub Actions runs on every push to `main`.
+GitHub Actions runs CI on every push to `main` and every pull request.
 
-The workflow:
+The CI workflow:
 
 1. Checks out the repository.
 2. Installs stable Rust.
 3. Checks formatting.
 4. Runs tests.
 5. Builds the project.
-6. Compares the current `Cargo.toml` package version with the previous pushed commit.
-7. If the version changed and `v<version>` does not already exist, builds a universal macOS executable for Apple Silicon and Intel Macs.
-8. Creates a GitHub Release tagged as `v<version>`.
-9. Uploads one release asset named `dedent-paste`.
 
-The one-line installer downloads:
+The release flow uses cargo-dist:
+
+1. `.github/workflows/version-release.yml` runs on pushes to `main` that modify `Cargo.toml`.
+2. It compares the current package version with the previous pushed commit.
+3. If the version changed and release `v<version>` does not already exist, it dispatches `.github/workflows/release.yml`.
+4. The cargo-dist `Release` workflow builds archives and checksums for configured targets:
+   - `aarch64-apple-darwin`
+   - `x86_64-apple-darwin`
+   - `aarch64-unknown-linux-gnu`
+   - `x86_64-unknown-linux-gnu`
+   - `x86_64-pc-windows-msvc`
+5. The cargo-dist workflow uploads shell and PowerShell installers plus platform archives to GitHub Releases.
+
+The one-line installer downloads and runs:
 
 ```text
-https://github.com/doggy8088/dedent-paste/releases/latest/download/dedent-paste
+https://github.com/doggy8088/dedent-paste/releases/latest/download/dedent-paste-installer.sh
 ```
+
+`dedent-paste` is still a macOS + Karabiner-Elements utility at runtime. The extra cargo-dist artifacts make release downloads convenient across common platforms, but the paste automation depends on macOS tools such as `pbpaste`, `pbcopy`, and `osascript`.
 
 ## GitHub Pages
 

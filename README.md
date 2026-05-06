@@ -22,7 +22,7 @@ After installation, press:
 Option+V
 ```
 
-The installer downloads the latest `dedent-paste` executable from GitHub Releases, installs it to:
+The installer uses the latest cargo-dist release installer, installs `dedent-paste` to:
 
 ```text
 ~/.local/bin/dedent-paste
@@ -48,11 +48,12 @@ Then make sure Karabiner-Elements is allowed.
 - [Karabiner-Elements manual](https://karabiner-elements.pqrs.org/docs/)
 - [Karabiner complex modifications](https://karabiner-elements.pqrs.org/docs/manual/configuration/configure-complex-modifications/)
 - [GitHub Releases for dedent-paste](https://github.com/doggy8088/dedent-paste/releases)
+- [cargo-dist](https://opensource.axo.dev/cargo-dist/)
 - [macOS Accessibility permission guide](https://support.apple.com/guide/mac-help/allow-accessibility-apps-to-access-your-mac-mh43185/mac)
 
 ## More information
 
-- Website: [dedent-paste GitHub Pages](https://doggy8088.github.io/dedent-paste/)
+- Website: [dedent-paste GitHub Pages](https://dedent-paste.gh.miniasp.com/)
 - Development notes: [DEVELOPMENT.md](DEVELOPMENT.md)
 - Changelog: [CHANGELOG.md](CHANGELOG.md)
 - License: [MIT](LICENSE)

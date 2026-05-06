@@ -14,6 +14,12 @@ fn main() {
 }
 
 fn run() -> Result<(), Box<dyn Error>> {
+    if !cfg!(target_os = "macos") {
+        return Err(
+            "dedent-paste requires macOS because it uses pbpaste, pbcopy, and osascript".into(),
+        );
+    }
+
     let clipboard = read_clipboard()?;
     let text = text_from_bytes(clipboard)?;
     let dedented = dedent_text(&text);
