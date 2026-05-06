@@ -16,6 +16,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -28,12 +30,48 @@ jobs:
       - name: Run tests
         run: cargo test --locked
 
+      - name: Build
+        run: cargo build --release --locked
+
+      - name: Detect Cargo version change
+        id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          current_version="$(awk -F '"' '/^version[[:space:]]*=/{print $2; exit}' Cargo.toml)"
+          if [[ -z "$current_version" ]]; then
+            echo "Unable to read package.version from Cargo.toml" >&2
+            exit 1
+          fi
+
+          previous_version=""
+          if [[ "${{ github.event.before }}" != "0000000000000000000000000000000000000000" ]] && git cat-file -e "${{ github.event.before }}:Cargo.toml" 2>/dev/null; then
+            previous_version="$(git show "${{ github.event.before }}:Cargo.toml" | awk -F '"' '/^version[[:space:]]*=/{print $2; exit}')"
+          fi
+
+          tag_name="v$current_version"
+          echo "version=$current_version" >> "$GITHUB_OUTPUT"
+          echo "tag_name=$tag_name" >> "$GITHUB_OUTPUT"
+
+          if [[ "$current_version" == "$previous_version" ]]; then
+            echo "Cargo.toml version is unchanged ($current_version); skipping release."
+            echo "release_needed=false" >> "$GITHUB_OUTPUT"
+          elif gh release view "$tag_name" >/dev/null 2>&1; then
+            echo "Release $tag_name already exists; skipping release."
+            echo "release_needed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Detected new Cargo.toml version: $current_version"
+            echo "release_needed=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Build release binaries
+        if: steps.version.outputs.release_needed == 'true'
         run: |
           cargo build --release --locked --target aarch64-apple-darwin
           cargo build --release --locked --target x86_64-apple-darwin
 
       - name: Prepare release asset
+        if: steps.version.outputs.release_needed == 'true'
         run: |
           mkdir -p dist
           lipo -create \
@@ -43,18 +81,14 @@ jobs:
           chmod 755 dist/dedent-paste
 
       - name: Create GitHub Release
+        if: steps.version.outputs.release_needed == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tag_name="main-${GITHUB_SHA::7}"
-
-          if gh release view "$tag_name" >/dev/null 2>&1; then
-            echo "Release $tag_name already exists; skipping."
-            exit 0
-          fi
+          tag_name="${{ steps.version.outputs.tag_name }}"
 
           gh release create "$tag_name" \
             dist/dedent-paste \
             --target "$GITHUB_SHA" \
             --title "$tag_name" \
-            --notes "Automated release for commit $GITHUB_SHA."
+            --notes "Automated release for dedent-paste ${{ steps.version.outputs.version }}."

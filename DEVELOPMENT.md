@@ -76,9 +76,11 @@ The workflow:
 2. Installs stable Rust.
 3. Checks formatting.
 4. Runs tests.
-5. Builds a universal macOS executable for Apple Silicon and Intel Macs.
-6. Creates a GitHub Release tagged as `main-<short-sha>`.
-7. Uploads one release asset named `dedent-paste`.
+5. Builds the project.
+6. Compares the current `Cargo.toml` package version with the previous pushed commit.
+7. If the version changed and `v<version>` does not already exist, builds a universal macOS executable for Apple Silicon and Intel Macs.
+8. Creates a GitHub Release tagged as `v<version>`.
+9. Uploads one release asset named `dedent-paste`.
 
 The one-line installer downloads:
 

@@ -8,6 +8,7 @@ All notable changes to this project are documented in this file.
 - Added `DEVELOPMENT.md` for build, install, Karabiner, and CI/CD details.
 - Added this changelog.
 - Updated GitHub Actions to publish a single `dedent-paste` executable release asset.
+- Updated GitHub Actions to publish releases only when `Cargo.toml` package version changes.
 
 ## 0.1.0
 
