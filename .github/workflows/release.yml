@@ -1,0 +1,53 @@
+name: CI/CD
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    name: Build and release
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Check formatting
+        run: cargo fmt --check
+
+      - name: Run tests
+        run: cargo test --locked
+
+      - name: Build release binary
+        run: cargo build --release --locked
+
+      - name: Prepare release asset
+        run: |
+          mkdir -p dist
+          cp target/release/dedent-paste dist/dedent-paste
+          chmod 755 dist/dedent-paste
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag_name="main-${GITHUB_SHA::7}"
+
+          if gh release view "$tag_name" >/dev/null 2>&1; then
+            echo "Release $tag_name already exists; skipping."
+            exit 0
+          fi
+
+          gh release create "$tag_name" \
+            dist/dedent-paste \
+            --target "$GITHUB_SHA" \
+            --title "$tag_name" \
+            --notes "Automated release for commit $GITHUB_SHA."

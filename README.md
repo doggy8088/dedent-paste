@@ -8,17 +8,22 @@
 
 需求：
 
-- Rust/Cargo
+- curl
 - Python 3
 - Karabiner-Elements
 
 ```sh
-./install.sh
+curl -fsSL https://raw.githubusercontent.com/doggy8088/dedent-paste/main/install.sh | bash
 ```
 
 安裝腳本會：
 
-- 執行 `cargo build --release`
+- 下載 latest GitHub Release 裡的單一可執行檔到：
+
+  ```text
+  ~/.local/bin/dedent-paste
+  ```
+
 - 寫入 Karabiner complex modification asset：
 
   ```text
@@ -34,16 +39,18 @@
 - 將 `Option+V` 規則加入目前作用中的 Karabiner profile
 - 如果系統有 `karabiner_cli`，會檢查 complex modification JSON 格式
 
+如果是在原始碼 checkout 內直接執行 `./install.sh`，腳本會改用 `cargo build --release` 從本機原始碼建置。
+
 ## 建置
 
 ```sh
 cargo build --release
 ```
 
-Karabiner 規則會呼叫 release binary：
+一行安裝後，Karabiner 規則會呼叫 release binary：
 
 ```text
-$HOME/projects/dedent-paste/target/release/dedent-paste
+$HOME/.local/bin/dedent-paste
 ```
 
 ## 行為
@@ -76,7 +83,7 @@ $HOME/projects/dedent-paste/target/release/dedent-paste
       },
       "to": [
         {
-          "shell_command": "$HOME/projects/dedent-paste/target/release/dedent-paste"
+          "shell_command": "$HOME/.local/bin/dedent-paste"
         }
       ],
       "type": "basic"

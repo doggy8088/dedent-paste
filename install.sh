@@ -1,32 +1,47 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+repo_dir="$script_dir"
 description="Option+V：執行 dedent-paste"
 asset_path="$HOME/.config/karabiner/assets/complex_modifications/paste-dedent-plain-text.json"
-
-if ! command -v cargo >/dev/null 2>&1; then
-  echo "error: cargo is required to build dedent-paste" >&2
-  exit 1
-fi
+install_dir="${DEDENT_PASTE_INSTALL_DIR:-$HOME/.local/bin}"
+release_url="https://github.com/doggy8088/dedent-paste/releases/latest/download/dedent-paste"
 
 if ! command -v python3 >/dev/null 2>&1; then
   echo "error: python3 is required to update Karabiner JSON files" >&2
   exit 1
 fi
 
-cargo build --release --manifest-path "$repo_dir/Cargo.toml"
+if [[ -f "$repo_dir/Cargo.toml" ]]; then
+  if ! command -v cargo >/dev/null 2>&1; then
+    echo "error: cargo is required to build dedent-paste from source" >&2
+    exit 1
+  fi
 
-REPO_DIR="$repo_dir" DESCRIPTION="$description" python3 <<'PY'
+  cargo build --release --manifest-path "$repo_dir/Cargo.toml"
+  binary_path="$repo_dir/target/release/dedent-paste"
+else
+  if ! command -v curl >/dev/null 2>&1; then
+    echo "error: curl is required to download dedent-paste" >&2
+    exit 1
+  fi
+
+  mkdir -p "$install_dir"
+  binary_path="$install_dir/dedent-paste"
+  curl --fail --location --retry 3 "$release_url" --output "$binary_path"
+  chmod 755 "$binary_path"
+fi
+
+BINARY_PATH="$binary_path" DESCRIPTION="$description" python3 <<'PY'
 import datetime
 import json
 import os
 import shutil
 from pathlib import Path
 
-repo_dir = Path(os.environ["REPO_DIR"])
+binary_path = Path(os.environ["BINARY_PATH"])
 description = os.environ["DESCRIPTION"]
-binary_path = repo_dir / "target" / "release" / "dedent-paste"
 asset_path = Path.home() / ".config" / "karabiner" / "assets" / "complex_modifications" / "paste-dedent-plain-text.json"
 karabiner_path = Path.home() / ".config" / "karabiner" / "karabiner.json"
 
