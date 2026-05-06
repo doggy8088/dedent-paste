@@ -42,6 +42,14 @@ System Settings > Privacy & Security > Accessibility
 
 Then make sure Karabiner-Elements is allowed.
 
+## Related links
+
+- [Karabiner-Elements](https://karabiner-elements.pqrs.org/)
+- [Karabiner-Elements manual](https://karabiner-elements.pqrs.org/docs/)
+- [Karabiner complex modifications](https://karabiner-elements.pqrs.org/docs/manual/configuration/configure-complex-modifications/)
+- [GitHub Releases for dedent-paste](https://github.com/doggy8088/dedent-paste/releases)
+- [macOS Accessibility permission guide](https://support.apple.com/guide/mac-help/allow-accessibility-apps-to-access-your-mac-mh43185/mac)
+
 ## More information
 
 - Development notes: [DEVELOPMENT.md](DEVELOPMENT.md)
