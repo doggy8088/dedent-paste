@@ -6,11 +6,33 @@
 
 ## 安裝
 
+需求：
+
+- Rust/Cargo
+- Python 3
+- Karabiner-Elements
+
 ```sh
 ./install.sh
 ```
 
-安裝腳本會建置 release binary、安裝 Karabiner complex modification asset，並將 `Option+V` 規則加入目前作用中的 Karabiner profile。
+安裝腳本會：
+
+- 執行 `cargo build --release`
+- 寫入 Karabiner complex modification asset：
+
+  ```text
+  ~/.config/karabiner/assets/complex_modifications/paste-dedent-plain-text.json
+  ```
+
+- 備份目前的 Karabiner 設定檔：
+
+  ```text
+  ~/.config/karabiner/karabiner.json.bak-YYYYMMDDHHMMSS
+  ```
+
+- 將 `Option+V` 規則加入目前作用中的 Karabiner profile
+- 如果系統有 `karabiner_cli`，會檢查 complex modification JSON 格式
 
 ## 建置
 
@@ -18,7 +40,7 @@
 cargo build --release
 ```
 
-Karabiner 已設定為呼叫：
+Karabiner 規則會呼叫 release binary：
 
 ```text
 $HOME/projects/dedent-paste/target/release/dedent-paste
