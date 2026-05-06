@@ -7,6 +7,7 @@
     <title>dedent-paste - Option+V, cleaned</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preload" href="assets/hero-aurora.webp" as="image" type="image/webp" fetchpriority="high">
     <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
       :root {
@@ -37,9 +38,7 @@
         overflow-x: hidden;
         color: var(--paper);
         background:
-          radial-gradient(circle at 16% 12%, rgba(113, 255, 213, 0.2), transparent 28rem),
-          radial-gradient(circle at 84% 8%, rgba(255, 138, 61, 0.18), transparent 26rem),
-          radial-gradient(circle at 60% 82%, rgba(201, 255, 74, 0.13), transparent 30rem),
+          image-set(url("assets/hero-aurora.webp") type("image/webp")) center top / min(100%, 1180px) auto no-repeat,
           linear-gradient(135deg, #030807 0%, #07100d 50%, #0c1712 100%);
         font-family: "JetBrains Mono", monospace;
       }
@@ -55,18 +54,6 @@
           linear-gradient(90deg, rgba(255, 242, 199, 0.045) 1px, transparent 1px);
         background-size: 44px 44px;
         mask-image: linear-gradient(to bottom, black, transparent 86%);
-      }
-
-      body::after {
-        position: fixed;
-        inset: 0;
-        z-index: -1;
-        pointer-events: none;
-        content: "";
-        opacity: 0.22;
-        background-image:
-          repeating-radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.6) 0 1px, transparent 1px 7px);
-        mix-blend-mode: overlay;
       }
 
       a {
@@ -261,6 +248,17 @@
         min-height: 560px;
       }
 
+      .demo-orb {
+        position: absolute;
+        top: 128px;
+        right: 88px;
+        width: min(42vw, 250px);
+        height: auto;
+        pointer-events: none;
+        filter: drop-shadow(0 24px 42px rgba(0, 0, 0, 0.28));
+        transform: rotate(-9deg);
+      }
+
       .demo-card {
         position: absolute;
         width: min(100%, 500px);
@@ -414,6 +412,12 @@
           top: 246px;
         }
 
+        .demo-orb {
+          top: 210px;
+          right: 24px;
+          width: 190px;
+        }
+
         .features {
           grid-template-columns: 1fr;
         }
@@ -479,6 +483,8 @@
         </div>
 
         <div class="demo" aria-label="Before and after indentation demo">
+          <img class="demo-orb" src="assets/dedent-orb.webp" width="420" height="420" alt="" decoding="async" fetchpriority="low">
+
           <article class="demo-card before">
             <div class="card-label">
               <span>Clipboard before</span>
