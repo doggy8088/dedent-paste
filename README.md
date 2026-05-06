@@ -30,6 +30,8 @@ Option+V
 
 它也會把 `Option+V` 規則加入目前啟用中的 Karabiner-Elements profile，並在修改前備份你的 Karabiner 設定。
 
+如果你想手動查看或匯入 Karabiner-Elements 規則，可以參考 [`paste-dedent-plain-text.json`](paste-dedent-plain-text.json)。
+
 ## 權限設定
 
 Karabiner-Elements 可能需要 macOS「輔助使用」權限，才能透過 System Events 觸發貼上動作。

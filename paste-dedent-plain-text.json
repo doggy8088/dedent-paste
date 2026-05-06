@@ -1,0 +1,26 @@
+{
+  "title": "Dedent paste",
+  "rules": [
+    {
+      "description": "Option+V：執行 dedent-paste",
+      "manipulators": [
+        {
+          "from": {
+            "key_code": "v",
+            "modifiers": {
+              "mandatory": [
+                "option"
+              ]
+            }
+          },
+          "to": [
+            {
+              "shell_command": "$HOME/.local/bin/dedent-paste"
+            }
+          ],
+          "type": "basic"
+        }
+      ]
+    }
+  ]
+}
