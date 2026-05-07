@@ -6,5 +6,3 @@ Allow: /
 
 User-agent: Facebot
 Allow: /
-
-Sitemap: https://dedent-paste.gh.miniasp.com/sitemap.xml
