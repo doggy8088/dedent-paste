@@ -37,6 +37,7 @@
       }
 
       body {
+        position: relative;
         min-height: 100vh;
         margin: 0;
         overflow-x: hidden;
@@ -54,14 +55,27 @@
       body::before {
         position: fixed;
         inset: 0;
-        z-index: -2;
+        z-index: 0;
         pointer-events: none;
         content: "";
         background-image:
-          linear-gradient(rgba(255, 242, 199, 0.055) 1px, transparent 1px),
-          linear-gradient(90deg, rgba(255, 242, 199, 0.045) 1px, transparent 1px);
+          linear-gradient(rgba(255, 242, 199, 0.032) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(255, 242, 199, 0.026) 1px, transparent 1px);
         background-size: 44px 44px;
         mask-image: linear-gradient(to bottom, black, transparent 86%);
+        opacity: 0.72;
+      }
+
+      body::after {
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        pointer-events: none;
+        content: "";
+        background:
+          radial-gradient(ellipse at 26% 42%, rgba(3, 8, 7, 0.78) 0 28%, rgba(3, 8, 7, 0.34) 48%, transparent 66%),
+          radial-gradient(ellipse at 78% 46%, rgba(3, 8, 7, 0.48) 0 24%, transparent 58%),
+          linear-gradient(90deg, rgba(3, 8, 7, 0.5), transparent 38%, rgba(3, 8, 7, 0.18));
       }
 
       a {
@@ -80,6 +94,8 @@
       }
 
       .shell {
+        position: relative;
+        z-index: 1;
         width: min(1180px, calc(100% - 32px));
         margin: 0 auto;
       }
@@ -148,6 +164,21 @@
         gap: 56px;
         align-items: center;
         padding: 64px 0 88px;
+      }
+
+      .hero > div:first-child {
+        position: relative;
+        isolation: isolate;
+      }
+
+      .hero > div:first-child::before {
+        position: absolute;
+        inset: -42px -36px -34px -34px;
+        z-index: -1;
+        content: "";
+        background: radial-gradient(ellipse at 35% 38%, rgba(3, 8, 7, 0.86), rgba(3, 8, 7, 0.5) 48%, transparent 72%);
+        border-radius: 42px;
+        filter: blur(2px);
       }
 
       .eyebrow {
@@ -220,10 +251,15 @@
         position: relative;
         padding: 18px;
         overflow: hidden;
-        background: linear-gradient(145deg, rgba(255, 242, 199, 0.08), rgba(113, 255, 213, 0.06));
-        border: 1px solid var(--line);
+        background:
+          linear-gradient(145deg, rgba(255, 242, 199, 0.08), rgba(113, 255, 213, 0.05)),
+          rgba(3, 8, 7, 0.58);
+        border: 1px solid rgba(255, 242, 199, 0.1);
         border-radius: 24px;
-        box-shadow: 0 24px 80px var(--shadow);
+        box-shadow:
+          0 24px 80px var(--shadow),
+          inset 0 1px 0 rgba(255, 255, 255, 0.06);
+        backdrop-filter: blur(16px);
       }
 
       .install-card::before {
@@ -243,9 +279,10 @@
         gap: 14px;
         align-items: center;
         padding: 18px 18px 18px 20px;
-        background: rgba(0, 0, 0, 0.42);
-        border: 1px solid rgba(255, 242, 199, 0.18);
+        background: rgba(3, 8, 7, 0.78);
+        border: 1px solid rgba(201, 255, 74, 0.18);
         border-radius: 18px;
+        box-shadow: inset 0 0 0 1px rgba(255, 242, 199, 0.05);
       }
 
       .command code {
@@ -331,10 +368,14 @@
         position: absolute;
         width: min(100%, 500px);
         padding: 18px;
-        background: var(--panel);
-        border: 1px solid var(--line);
+        background:
+          linear-gradient(145deg, rgba(255, 242, 199, 0.035), transparent 42%),
+          rgba(6, 18, 15, 0.88);
+        border: 1px solid rgba(255, 242, 199, 0.12);
         border-radius: 28px;
-        box-shadow: 0 28px 110px rgba(0, 0, 0, 0.44);
+        box-shadow:
+          0 28px 110px rgba(0, 0, 0, 0.5),
+          0 0 0 1px rgba(113, 255, 213, 0.04);
         backdrop-filter: blur(22px);
       }
 
@@ -344,7 +385,9 @@
         pointer-events: none;
         content: "";
         border-radius: inherit;
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+        box-shadow:
+          inset 0 1px 0 rgba(255, 255, 255, 0.08),
+          inset 0 -1px 0 rgba(0, 0, 0, 0.28);
       }
 
       .demo-card.before {
