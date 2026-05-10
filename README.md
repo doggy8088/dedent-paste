@@ -37,7 +37,7 @@ $HOME/.local/bin/dedent-paste
 - 修改前會先備份 Karabiner 設定。
 - Karabiner 規則會直接指向 `$HOME/.local/bin/dedent-paste`，所以即使你的 shell `PATH` 尚未包含 `$HOME/.local/bin`，快捷鍵仍可正常使用。
 - 如果你想在 Terminal 直接輸入 `dedent-paste`，再自行把 `$HOME/.local/bin` 加入 `PATH`。
-- 如果你想手動查看或匯入規則，可以參考 [`paste-dedent-plain-text.json`](paste-dedent-plain-text.json)。
+- 如果你想手動查看或匯入規則，可以參考 [`examples/macos/paste-dedent-plain-text.json`](examples/macos/paste-dedent-plain-text.json)。
 
 Karabiner-Elements 可能需要 macOS「輔助使用」權限，才能透過 System Events 觸發貼上動作。
 
