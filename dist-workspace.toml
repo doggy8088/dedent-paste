@@ -7,8 +7,7 @@ members = ["cargo:."]
 cargo-dist-version = "0.31.0"
 # CI backends to support
 ci = "github"
-# Release publishing is dispatched by .github/workflows/version-release.yml
-# only when Cargo.toml's package version changes on main.
+# Whether CI should trigger releases with dispatches instead of tag pushes
 dispatch-releases = true
 # The installers to generate for each app
 installers = ["shell", "powershell"]

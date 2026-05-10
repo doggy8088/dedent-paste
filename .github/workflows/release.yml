@@ -273,30 +273,14 @@ jobs:
       - name: Create GitHub Release
         env:
           PRERELEASE_FLAG: "${{ fromJson(steps.host.outputs.manifest).announcement_is_prerelease && '--prerelease' || '' }}"
+          ANNOUNCEMENT_TITLE: "${{ fromJson(steps.host.outputs.manifest).announcement_title }}"
           ANNOUNCEMENT_BODY: "${{ fromJson(steps.host.outputs.manifest).announcement_github_body }}"
           RELEASE_COMMIT: "${{ github.sha }}"
-          RELEASE_TAG: "${{ needs.plan.outputs.tag }}"
         run: |
           # Write and read notes from a file to avoid quoting breaking things
-          notes_file="$RUNNER_TEMP/notes.txt"
-          release_version="${RELEASE_TAG#v}"
-          release_title="dedent-paste ${RELEASE_TAG}"
+          echo "$ANNOUNCEMENT_BODY" > $RUNNER_TEMP/notes.txt
 
-          printf '%s\n' "$ANNOUNCEMENT_BODY" > "$notes_file"
-
-          if [ ! -s "$notes_file" ] || [ "$(tr -d '[:space:]' < "$notes_file")" = "null" ]; then
-            awk -v version="$release_version" '
-              $0 == "## " version { in_section = 1; next }
-              in_section && /^## / { exit }
-              in_section { print }
-            ' CHANGELOG.md > "$notes_file"
-          fi
-
-          if [ ! -s "$notes_file" ] || [ -z "$(tr -d '[:space:]' < "$notes_file")" ]; then
-            printf 'See CHANGELOG.md for release notes for %s.\n' "$RELEASE_TAG" > "$notes_file"
-          fi
-
-          gh release create "$RELEASE_TAG" --target "$RELEASE_COMMIT" $PRERELEASE_FLAG --title "$release_title" --notes-file "$notes_file" artifacts/*
+          gh release create "${{ needs.plan.outputs.tag }}" --target "$RELEASE_COMMIT" $PRERELEASE_FLAG --title "$ANNOUNCEMENT_TITLE" --notes-file "$RUNNER_TEMP/notes.txt" artifacts/*
 
   announce:
     needs:
