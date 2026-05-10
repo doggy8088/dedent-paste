@@ -88,7 +88,7 @@ mod platform {
     use std::thread;
     use std::time::Duration;
 
-    use clipboard_win::{get_clipboard_string, set_clipboard_string};
+    use clipboard_win::{ErrorCode, get_clipboard_string, set_clipboard_string};
     use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
         INPUT, INPUT_0, INPUT_KEYBOARD, KEYBDINPUT, KEYEVENTF_KEYUP, SendInput, VK_CONTROL,
     };
@@ -97,11 +97,11 @@ mod platform {
     const CLIPBOARD_SETTLE_DELAY: Duration = Duration::from_millis(30);
 
     pub fn read_clipboard() -> Result<String, Box<dyn Error>> {
-        Ok(get_clipboard_string()?)
+        Ok(get_clipboard_string().map_err(clipboard_error)?)
     }
 
     pub fn write_clipboard(text: &str) -> Result<(), Box<dyn Error>> {
-        set_clipboard_string(text)?;
+        set_clipboard_string(text).map_err(clipboard_error)?;
         thread::sleep(CLIPBOARD_SETTLE_DELAY);
         Ok(())
     }
@@ -127,6 +127,10 @@ mod platform {
         }
 
         Ok(())
+    }
+
+    fn clipboard_error(error: ErrorCode) -> io::Error {
+        io::Error::other(error.to_string())
     }
 
     fn keyboard_input(vk: u16, flags: u32) -> INPUT {

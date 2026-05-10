@@ -12,15 +12,19 @@ permissions:
   contents: read
 
 jobs:
-  detect:
-    name: Dispatch cargo-dist release
-    runs-on: ubuntu-latest
+  validate:
+    name: Validate (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - windows-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -33,6 +37,17 @@ jobs:
 
       - name: Build
         run: cargo build --locked
+
+  detect:
+    name: Dispatch cargo-dist release
+    needs: validate
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Detect package version change
         id: version
