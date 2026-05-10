@@ -3,8 +3,8 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="dedent-paste removes common indentation from your clipboard and pastes clean text with Option+V on macOS.">
-    <meta name="keywords" content="dedent paste, plain text paste, Karabiner-Elements, macOS clipboard, Option+V, clipboard tool, developer productivity">
+    <meta name="description" content="dedent-paste removes common indentation from your clipboard and pastes clean plain text with Option+V on macOS or Win+V on Windows.">
+    <meta name="keywords" content="dedent paste, plain text paste, Karabiner-Elements, AutoHotkey, macOS clipboard, Windows clipboard, Option+V, Win+V, clipboard tool, developer productivity">
     <meta name="author" content="Will 保哥">
     <meta name="robots" content="index, follow">
     <meta name="theme-color" content="#07100d">
@@ -12,8 +12,8 @@
     <link rel="canonical" href="https://dedent-paste.gh.miniasp.com/">
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="dedent-paste">
-    <meta property="og:title" content="dedent-paste - Option+V, cleaned">
-    <meta property="og:description" content="Remove common indentation from your clipboard and paste clean plain text with Option+V on macOS.">
+    <meta property="og:title" content="dedent-paste - clean paste shortcuts">
+    <meta property="og:description" content="Remove common indentation from your clipboard and paste clean plain text with Option+V on macOS or Win+V on Windows.">
     <meta property="og:url" content="https://dedent-paste.gh.miniasp.com/">
     <meta property="og:image" content="https://dedent-paste.gh.miniasp.com/assets/og-image.jpg">
     <meta property="og:image:secure_url" content="https://dedent-paste.gh.miniasp.com/assets/og-image.jpg">
@@ -23,11 +23,11 @@
     <meta property="og:image:alt" content="dedent-paste landing page showing Paste clean. Stay in flow. and before/after clipboard indentation cards.">
     <meta property="og:locale" content="en_US">
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="dedent-paste - Option+V, cleaned">
-    <meta name="twitter:description" content="Remove common indentation from your clipboard and paste clean plain text with Option+V on macOS.">
+    <meta name="twitter:title" content="dedent-paste - clean paste shortcuts">
+    <meta name="twitter:description" content="Remove common indentation from your clipboard and paste clean plain text with Option+V on macOS or Win+V on Windows.">
     <meta name="twitter:image" content="https://dedent-paste.gh.miniasp.com/assets/og-image.jpg">
     <meta name="twitter:image:alt" content="dedent-paste landing page showing Paste clean. Stay in flow. and before/after clipboard indentation cards.">
-    <title>dedent-paste - Option+V, cleaned</title>
+    <title>dedent-paste - clean paste shortcuts</title>
     <link rel="icon" href="favicon.ico" sizes="any">
     <link rel="icon" href="assets/favicon-32x32.png" type="image/png" sizes="32x32">
     <link rel="icon" href="assets/favicon-512.webp" type="image/webp" sizes="512x512">
@@ -295,6 +295,37 @@
         transform: translate(-50%, -50%);
       }
 
+      .install-grid {
+        position: relative;
+        display: grid;
+        gap: 12px;
+      }
+
+      .command-stack {
+        display: grid;
+        gap: 8px;
+      }
+
+      .command-label {
+        color: var(--mint);
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.14em;
+      }
+
+      .install-note {
+        position: relative;
+        margin: 14px 4px 0;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.75;
+      }
+
+      .install-note a {
+        color: var(--paper);
+      }
+
       .command {
         position: relative;
         display: grid;
@@ -555,6 +586,18 @@
         line-height: 1.7;
       }
 
+      .install-note code,
+      .feature code,
+      .footer-copy code {
+        padding: 2px 6px;
+        color: var(--paper);
+        font-size: 12px;
+        background: rgba(255, 242, 199, 0.08);
+        border: 1px solid rgba(255, 242, 199, 0.12);
+        border-radius: 8px;
+        overflow-wrap: anywhere;
+      }
+
       .use-cases {
         display: flex;
         flex-wrap: wrap;
@@ -761,6 +804,7 @@
         </a>
         <div class="nav-links">
           <a href="#install">Install</a>
+          <a href="#platforms">Platforms</a>
           <a href="#features">Features</a>
           <a href="https://github.com/doggy8088/dedent-paste">GitHub</a>
           <a href="https://github.com/doggy8088/dedent-paste/releases">Releases</a>
@@ -769,28 +813,45 @@
 
       <section class="hero">
         <div>
-          <span class="eyebrow">macOS clipboard tool</span>
+          <span class="eyebrow">macOS + Windows clipboard tool</span>
           <h1>Paste clean. <em>Stay in flow.</em></h1>
           <p class="lead">
-            Option+V strips the common indentation from your clipboard and pastes the result as plain text.
-            Perfect for moving code, notes, prompts, and Markdown between apps without dragging extra whitespace along.
+            dedent-paste removes the common indentation from your clipboard, rewrites the result as plain text,
+            and pastes it immediately. Use Option+V with Karabiner-Elements on macOS, or Win+V with AutoHotkey on Windows.
           </p>
 
-          <div class="install-card" aria-label="Install command">
-            <div id="install" class="command">
-              <code id="install-command">curl -fsSL https://raw.githubusercontent.com/doggy8088/dedent-paste/main/install.sh | bash</code>
-              <button class="copy" type="button" data-copy-target="install-command">Copy</button>
+          <div class="install-card" aria-label="Install commands">
+            <div id="install" class="install-grid">
+              <div class="command-stack">
+                <span class="command-label">macOS installer</span>
+                <div class="command">
+                  <code id="install-command-macos">curl -fsSL https://raw.githubusercontent.com/doggy8088/dedent-paste/main/install.sh | bash</code>
+                  <button class="copy" type="button" data-copy-target="install-command-macos">Copy</button>
+                </div>
+              </div>
+              <div class="command-stack">
+                <span class="command-label">Windows installer</span>
+                <div class="command">
+                  <code id="install-command-windows">irm https://github.com/doggy8088/dedent-paste/releases/latest/download/dedent-paste-installer.ps1 | iex</code>
+                  <button class="copy" type="button" data-copy-target="install-command-windows">Copy</button>
+                </div>
+              </div>
             </div>
+            <p class="install-note">
+              Releases include both shell and PowerShell installers. For AutoHotkey, prefer the fixed path
+              <code>%USERPROFILE%\.local\bin\dedent-paste.exe</code>
+              instead of waiting for PATH changes to refresh.
+            </p>
           </div>
 
           <div class="hero-actions">
             <a class="button primary" href="https://github.com/doggy8088/dedent-paste/releases">Download releases</a>
-            <a class="button secondary" href="https://github.com/doggy8088/dedent-paste">View source</a>
+            <a class="button secondary" href="https://github.com/doggy8088/dedent-paste/blob/main/README.md">Setup guide</a>
           </div>
 
           <div class="trust-strip" aria-label="Project facts">
-            <span><strong>cargo-dist releases</strong>macOS, Linux, and Windows archives</span>
-            <span><strong>One-line setup</strong>Installs binary and Karabiner rule</span>
+            <span><strong>Installer pair</strong>Shell for macOS, PowerShell for Windows</span>
+            <span><strong>Hotkey glue</strong>Karabiner-Elements or AutoHotkey</span>
             <span><strong>Local clipboard</strong>No server, no upload, no tracking</span>
           </div>
         </div>
@@ -813,7 +874,7 @@
           <div class="keycap" aria-hidden="true">
             <div>
               <strong>V</strong>
-              <span>Option</span>
+              <span>Option / Win</span>
             </div>
           </div>
 
@@ -831,11 +892,37 @@
         </div>
       </section>
 
+      <section id="platforms" class="section-intro" aria-labelledby="platforms-title">
+        <h2 id="platforms-title">Two platforms, clear setup paths.</h2>
+        <p>
+          Pick the stack that matches your machine. The README separates macOS and Windows install, setup,
+          and usage steps so you can wire up the right shortcut without guessing.
+        </p>
+      </section>
+
+      <section class="features" aria-label="Platform quick guide">
+        <article class="feature">
+          <span class="feature-index">macOS</span>
+          <strong>Karabiner + Option+V</strong>
+          <p>Run the shell installer, let it add the Karabiner rule, and allow Accessibility access if macOS asks.</p>
+        </article>
+        <article class="feature">
+          <span class="feature-index">Windows</span>
+          <strong>PowerShell + AutoHotkey</strong>
+          <p>Run the PowerShell installer, then bind <code>Win+V</code> with AutoHotkey v1 or v2. Want clipboard history too? Remap it to <code>Alt+V</code> or another key.</p>
+        </article>
+        <article class="feature">
+          <span class="feature-index">PATH</span>
+          <strong>Prefer fixed paths for hotkeys</strong>
+          <p>Installers can update PATH, but shortcut tools are more reliable when they launch the installed binary directly.</p>
+        </article>
+      </section>
+
       <section id="features" class="section-intro" aria-labelledby="features-title">
         <h2 id="features-title">A tiny tool for oversized paste moments.</h2>
         <p>
-          The page should feel like the product: fast, precise, and made for people who move text all day.
-          One shortcut removes the messy shared indent while leaving your normal Command+V untouched.
+          Fast, precise, and made for people who move text all day. One shortcut removes the messy shared indent
+          while leaving your normal paste shortcut untouched on each platform.
         </p>
       </section>
 
@@ -843,17 +930,17 @@
         <article class="feature">
           <span class="feature-index">01 / Shortcut</span>
           <strong>One key chord</strong>
-          <p>Karabiner-Elements maps Option+V to the helper, so dedented paste feels like a native paste command.</p>
+          <p>Karabiner-Elements maps <code>Option+V</code> on macOS. AutoHotkey can map <code>Win+V</code> on Windows, or another shortcut if you want to keep clipboard history.</p>
         </article>
         <article class="feature">
           <span class="feature-index">02 / Release</span>
           <strong>Easy release downloads</strong>
-          <p>GitHub Releases publish cargo-dist installers, platform archives, and checksums for common targets.</p>
+          <p>GitHub Releases publish shell and PowerShell installers, platform archives, and checksums for common targets.</p>
         </article>
         <article class="feature">
           <span class="feature-index">03 / Clipboard</span>
           <strong>Plain text, UTF-8 safe</strong>
-          <p>The clipboard is read as text, written back as UTF-8, and pasted through macOS System Events.</p>
+          <p>The clipboard is read as text, written back as UTF-8, then pasted with macOS System Events or a simulated <code>Ctrl+V</code> on Windows.</p>
         </article>
       </section>
 
@@ -868,11 +955,12 @@
 
       <footer class="footer">
         <div>
-          <span class="footer-kicker">Paste clean, keep the source intact</span>
+          <span class="footer-kicker">Paste clean on macOS and Windows</span>
           <strong class="footer-title">For snippets, Markdown, prompts, and notes that need to move without extra indentation.</strong>
           <p class="footer-copy">
-            dedent-paste only changes the clipboard text you paste with Option+V. Keep the original source when exact
-            indentation matters, and allow Karabiner-Elements in macOS Accessibility so the paste automation can run.
+            dedent-paste only changes the clipboard text for the special shortcut you wire up: <code>Option+V</code> via
+            Karabiner-Elements on macOS, or <code>Win+V</code> via AutoHotkey on Windows. Keep the original source when exact
+            indentation matters, and remap the Windows hotkey if you want to keep the built-in clipboard history shortcut.
           </p>
         </div>
         <div class="footer-links" aria-label="Project links">

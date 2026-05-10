@@ -4,6 +4,14 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+## 0.2.0
+
+- Added Windows runtime support with native clipboard handling and simulated `Ctrl+V` paste.
+- Added AutoHotkey v1/v2 examples for using `dedent-paste` with `Win+V` on Windows.
+- Updated `README.md` with separate macOS and Windows installation, setup, and usage guides.
+- Documented the PowerShell Release installer and clarified `PATH` vs fixed-path AutoHotkey setup.
+- Updated `docs/index.html` and `DEVELOPMENT.md` to reflect macOS + Windows support.
+
 ## 0.1.1
 
 - Simplified `README.md` for end users.

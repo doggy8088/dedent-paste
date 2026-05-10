@@ -91,13 +91,23 @@ The release flow uses cargo-dist:
    - `x86_64-pc-windows-msvc`
 5. The cargo-dist workflow uploads shell and PowerShell installers plus platform archives to GitHub Releases.
 
-The one-line installer downloads and runs:
+The one-line macOS installer downloads and runs:
 
 ```text
 https://github.com/doggy8088/dedent-paste/releases/latest/download/dedent-paste-installer.sh
 ```
 
-`dedent-paste` is still a macOS + Karabiner-Elements utility at runtime. The extra cargo-dist artifacts make release downloads convenient across common platforms, but the paste automation depends on macOS tools such as `pbpaste`, `pbcopy`, and `osascript`.
+The corresponding Windows PowerShell installer is:
+
+```text
+https://github.com/doggy8088/dedent-paste/releases/latest/download/dedent-paste-installer.ps1
+```
+
+`dedent-paste` supports macOS and Windows at runtime:
+
+- macOS uses `pbpaste`, `pbcopy`, and `osascript`, and is intended to be triggered by Karabiner-Elements.
+- Windows uses native clipboard APIs and simulated `Ctrl+V`, and the hotkey integration in `README.md` uses AutoHotkey.
+- Linux artifacts are still published by cargo-dist for consistency, but runtime clipboard/paste integration is not documented.
 
 ## GitHub Pages
 
