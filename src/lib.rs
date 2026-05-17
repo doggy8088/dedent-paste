@@ -17,6 +17,9 @@ impl fmt::Display for DedentError {
 impl Error for DedentError {}
 
 pub fn dedent_text(input: &str) -> String {
+    let stripped_prompt = strip_prompt_prefix(input);
+    let input = stripped_prompt.as_deref().unwrap_or(input);
+
     let min_indent = input
         .lines()
         .filter(|line| !is_blank_line(line))
@@ -39,12 +42,47 @@ pub fn text_from_bytes(bytes: Vec<u8>) -> Result<String, DedentError> {
 }
 
 fn dedent_line(line: &str, width: usize) -> String {
-    let (body, newline) = match line.strip_suffix('\n') {
-        Some(body) => (body, "\n"),
-        None => (line, ""),
-    };
+    let (body, newline) = split_trailing_newline(line);
 
     format!("{}{}", remove_prefix_whitespace(body, width), newline)
+}
+
+fn strip_prompt_prefix(input: &str) -> Option<String> {
+    let mut lines = input.split_inclusive('\n');
+    let first_line = lines.next()?;
+    let (first_body, first_newline) = split_trailing_newline(first_line);
+    let indent = prompt_indent(first_body)?;
+
+    let mut stripped = String::new();
+    stripped.push_str(first_body.strip_prefix(indent)?.strip_prefix("❯ ")?);
+    stripped.push_str(first_newline);
+
+    for line in lines {
+        let (body, newline) = split_trailing_newline(line);
+        stripped.push_str(body.strip_prefix(indent)?.strip_prefix("  ")?);
+        stripped.push_str(newline);
+    }
+
+    Some(stripped)
+}
+
+fn prompt_indent(line: &str) -> Option<&str> {
+    for (idx, ch) in line.char_indices() {
+        if ch == ' ' || ch == '\t' {
+            continue;
+        }
+
+        return line[idx..].starts_with("❯ ").then_some(&line[..idx]);
+    }
+
+    None
+}
+
+fn split_trailing_newline(line: &str) -> (&str, &str) {
+    match line.strip_suffix('\n') {
+        Some(body) => (body, "\n"),
+        None => (line, ""),
+    }
 }
 
 fn remove_prefix_whitespace(line: &str, width: usize) -> &str {
@@ -121,6 +159,21 @@ mod tests {
             dedent_text("  alpha\r\n    beta\r\n"),
             "alpha\r\n  beta\r\n"
         );
+    }
+
+    #[test]
+    fn strips_terminal_prompt_and_continuation_prefixes() {
+        assert_eq!(
+            dedent_text(
+                "❯ Rewrite everything in Rust. I need cross-platform of the repo\n  scanner. Use cargo-dist to package all available platforms."
+            ),
+            "Rewrite everything in Rust. I need cross-platform of the repo\nscanner. Use cargo-dist to package all available platforms."
+        );
+    }
+
+    #[test]
+    fn strips_terminal_prompt_after_shared_indent() {
+        assert_eq!(dedent_text("    ❯ alpha\n      beta\n"), "alpha\nbeta\n");
     }
 
     #[test]
