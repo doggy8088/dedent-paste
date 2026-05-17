@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+## 0.2.1
+
+- Added support for stripping common terminal prompt prefixes when normalizing pasted text.
+
 ## 0.2.0
 
 - Added Windows runtime support with native clipboard handling and simulated `Ctrl+V` paste.
