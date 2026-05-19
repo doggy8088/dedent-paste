@@ -27,11 +27,19 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Install Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
       - name: Check formatting
         run: cargo fmt --check
 
       - name: Run tests
         run: cargo test --locked
+
+      - name: Run npm tests
+        run: npm test
 
       - name: Build
         run: cargo build --locked

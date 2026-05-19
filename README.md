@@ -14,6 +14,14 @@
 - macOS：搭配 Karabiner-Elements，使用 `Option+V`
 - Windows：搭配 AutoHotkey，使用 `Win+V`
 
+也可以透過 npm 安裝 CLI：
+
+```sh
+npm install -g dedent-paste
+```
+
+npm 套件會在安裝時從 GitHub Releases 下載符合目前平台的原生執行檔並驗證 SHA-256 checksum。
+
 > 注意：Windows 預設的 `Win+V` 是「剪貼簿歷程記錄」。如果你使用下面的 AutoHotkey 腳本，這個預設快捷鍵會被覆蓋。
 
 ## macOS
