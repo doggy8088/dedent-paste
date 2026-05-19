@@ -27,10 +27,6 @@ pub fn dedent_text(input: &str) -> String {
         .min()
         .unwrap_or(0);
 
-    if min_indent == 0 {
-        return input.to_owned();
-    }
-
     input
         .split_inclusive('\n')
         .map(|line| dedent_line(line, min_indent))
@@ -43,8 +39,9 @@ pub fn text_from_bytes(bytes: Vec<u8>) -> Result<String, DedentError> {
 
 fn dedent_line(line: &str, width: usize) -> String {
     let (body, newline) = split_trailing_newline(line);
+    let body = remove_prefix_whitespace(body, width).trim_end_matches([' ', '\t']);
 
-    format!("{}{}", remove_prefix_whitespace(body, width), newline)
+    format!("{body}{newline}")
 }
 
 fn strip_prompt_prefix(input: &str) -> Option<String> {
@@ -79,9 +76,12 @@ fn prompt_indent(line: &str) -> Option<&str> {
 }
 
 fn split_trailing_newline(line: &str) -> (&str, &str) {
-    match line.strip_suffix('\n') {
-        Some(body) => (body, "\n"),
-        None => (line, ""),
+    if let Some(body) = line.strip_suffix("\r\n") {
+        (body, "\r\n")
+    } else if let Some(body) = line.strip_suffix('\n') {
+        (body, "\n")
+    } else {
+        (line, "")
     }
 }
 
@@ -144,6 +144,16 @@ mod tests {
     }
 
     #[test]
+    fn trims_trailing_spaces_and_tabs_from_each_line() {
+        assert_eq!(dedent_text("  alpha  \n    beta\t \n"), "alpha\n  beta\n");
+    }
+
+    #[test]
+    fn trims_trailing_whitespace_even_without_common_indent() {
+        assert_eq!(dedent_text("alpha  \n  beta\t\n"), "alpha\n  beta\n");
+    }
+
+    #[test]
     fn treats_tabs_and_spaces_as_one_prefix_character_each() {
         assert_eq!(dedent_text("\t alpha\n\t\tbeta\n"), "alpha\nbeta\n");
     }
@@ -156,7 +166,7 @@ mod tests {
     #[test]
     fn preserves_crlf_line_endings() {
         assert_eq!(
-            dedent_text("  alpha\r\n    beta\r\n"),
+            dedent_text("  alpha  \r\n    beta\t\r\n"),
             "alpha\r\n  beta\r\n"
         );
     }
@@ -178,7 +188,7 @@ mod tests {
 
     #[test]
     fn keeps_all_blank_input_as_blank() {
-        assert_eq!(dedent_text("  \n\t\n"), "  \n\t\n");
+        assert_eq!(dedent_text("  \n\t\n"), "\n\n");
     }
 
     #[test]
