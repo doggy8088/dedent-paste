@@ -77,7 +77,9 @@ Do not introduce new build, lint, or test tools unless the task explicitly requi
 - Format the subject as `<type>[optional scope]: <description>`, for example `docs: update agent guidance`.
 - Use `feat` for new user-facing behavior and `fix` for bug fixes. Use other Conventional Commit types such as `docs`, `test`, `refactor`, `build`, `ci`, or `chore` when appropriate.
 - Mark breaking changes with `!` before the colon and include a `BREAKING CHANGE:` footer.
-- When creating multi-line git commit messages from the shell, pass each paragraph with separate `-m` arguments or insert real newline characters. Do not write the literal string `\n` into the git log message.
+- Do not add blank lines inside the commit message body.
+- Do not use multiple `git commit -m` arguments to write multiple lines of a commit message body.
+- When a multi-line commit message is necessary, insert real newline characters. Do not write the literal string `\n` into the git log message.
 
 ## Safety notes
 
