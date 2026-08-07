@@ -4,6 +4,13 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+## 0.2.2
+
+- 支援移除 Codex CLI 的 `›` 提示符，並保留既有的 `❯` 提示符相容性。
+- 自動合併 Codex CLI 同一段落中的單一視覺換行，依 CJK 與拉丁文字邊界決定是否插入空白。
+- 保留連續換行所代表的真正段落分隔，並維持 LF 與 CRLF 行尾格式。
+- 同步 Rust crate 與 npm 套件版本至 `0.2.2`。
+
 ## 0.2.1
 
 - Added support for stripping common terminal prompt prefixes when normalizing pasted text.

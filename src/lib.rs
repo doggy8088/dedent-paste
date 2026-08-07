@@ -27,10 +27,16 @@ pub fn dedent_text(input: &str) -> String {
         .min()
         .unwrap_or(0);
 
-    input
+    let dedented: String = input
         .split_inclusive('\n')
         .map(|line| dedent_line(line, min_indent))
-        .collect()
+        .collect();
+
+    if stripped_prompt.is_some() {
+        unwrap_prompt_lines(&dedented)
+    } else {
+        dedented
+    }
 }
 
 pub fn text_from_bytes(bytes: Vec<u8>) -> Result<String, DedentError> {
@@ -51,12 +57,16 @@ fn strip_prompt_prefix(input: &str) -> Option<String> {
     let indent = prompt_indent(first_body)?;
 
     let mut stripped = String::new();
-    stripped.push_str(first_body.strip_prefix(indent)?.strip_prefix("❯ ")?);
+    stripped.push_str(strip_prompt_marker(first_body, indent)?);
     stripped.push_str(first_newline);
 
     for line in lines {
         let (body, newline) = split_trailing_newline(line);
-        stripped.push_str(body.strip_prefix(indent)?.strip_prefix("  ")?);
+        if is_blank_line(body) {
+            stripped.push_str(body.trim_matches([' ', '\t']));
+        } else {
+            stripped.push_str(body.strip_prefix(indent)?.strip_prefix("  ")?);
+        }
         stripped.push_str(newline);
     }
 
@@ -69,10 +79,78 @@ fn prompt_indent(line: &str) -> Option<&str> {
             continue;
         }
 
-        return line[idx..].starts_with("❯ ").then_some(&line[..idx]);
+        return (line[idx..].starts_with("❯ ") || line[idx..].starts_with("› "))
+            .then_some(&line[..idx]);
     }
 
     None
+}
+
+fn strip_prompt_marker<'a>(line: &'a str, indent: &str) -> Option<&'a str> {
+    let line = line.strip_prefix(indent)?;
+
+    line.strip_prefix("❯ ").or_else(|| line.strip_prefix("› "))
+}
+
+fn unwrap_prompt_lines(input: &str) -> String {
+    let lines: Vec<_> = input
+        .split_inclusive('\n')
+        .map(split_trailing_newline)
+        .collect();
+    let mut output = String::with_capacity(input.len());
+    let mut previous_line_was_joined = false;
+
+    for (index, (body, newline)) in lines.iter().enumerate() {
+        let body = if previous_line_was_joined {
+            body.trim_start_matches([' ', '\t'])
+        } else {
+            body
+        };
+
+        output.push_str(body);
+
+        let next_body = lines.get(index + 1).map(|(body, _)| *body);
+        let should_join = !newline.is_empty()
+            && !is_blank_line(body)
+            && next_body.is_some_and(|next| !is_blank_line(next));
+
+        if should_join {
+            let next_body = next_body.expect("next body exists when joining prompt lines");
+            output.push_str(join_separator(body, next_body));
+            previous_line_was_joined = true;
+        } else {
+            output.push_str(newline);
+            previous_line_was_joined = false;
+        }
+    }
+
+    output
+}
+
+fn join_separator(left: &str, right: &str) -> &'static str {
+    let left = left.chars().next_back();
+    let right = right.chars().find(|ch| !matches!(ch, ' ' | '\t'));
+
+    if matches!((left, right), (Some(left), Some(right)) if is_cjk(left) && is_cjk(right)) {
+        ""
+    } else {
+        " "
+    }
+}
+
+fn is_cjk(ch: char) -> bool {
+    matches!(
+        ch as u32,
+        0x2E80..=0x2FFF
+            | 0x3000..=0x303F
+            | 0x3040..=0x30FF
+            | 0x31F0..=0x31FF
+            | 0x3400..=0x4DBF
+            | 0x4E00..=0x9FFF
+            | 0xAC00..=0xD7AF
+            | 0xF900..=0xFAFF
+            | 0xFF00..=0xFFEF
+    )
 }
 
 fn split_trailing_newline(line: &str) -> (&str, &str) {
@@ -177,13 +255,66 @@ mod tests {
             dedent_text(
                 "❯ Rewrite everything in Rust. I need cross-platform of the repo\n  scanner. Use cargo-dist to package all available platforms."
             ),
-            "Rewrite everything in Rust. I need cross-platform of the repo\nscanner. Use cargo-dist to package all available platforms."
+            "Rewrite everything in Rust. I need cross-platform of the repo scanner. Use cargo-dist to package all available platforms."
         );
     }
 
     #[test]
     fn strips_terminal_prompt_after_shared_indent() {
-        assert_eq!(dedent_text("    ❯ alpha\n      beta\n"), "alpha\nbeta\n");
+        assert_eq!(dedent_text("    ❯ alpha\n      beta\n"), "alpha beta\n");
+    }
+
+    #[test]
+    fn strips_codex_prompt_and_unwraps_the_user_example() {
+        assert_eq!(
+            dedent_text(
+                "› 我想要分析整個專案 src/ 的原始碼結構與系統架構、資料庫結構(if any)、專案詞彙表(統一名詞解釋)、技術棧、共用模組、主要流程與維護注意事項，請幫我制定一套詳盡的分\n  析計畫，幫助我快速理解本專案。請設計給一位資深工程師可以輕鬆理解的分析報告。請建立多份 Markdown 文件，方便我快速理解架構。相關圖表要參考 $design-doc-mermaid\n  技能進行繪製。"
+            ),
+            "我想要分析整個專案 src/ 的原始碼結構與系統架構、資料庫結構(if any)、專案詞彙表(統一名詞解釋)、技術棧、共用模組、主要流程與維護注意事項，請幫我制定一套詳盡的分析計畫，幫助我快速理解本專案。請設計給一位資深工程師可以輕鬆理解的分析報告。請建立多份 Markdown 文件，方便我快速理解架構。相關圖表要參考 $design-doc-mermaid 技能進行繪製。"
+        );
+    }
+
+    #[test]
+    fn joins_cjk_lines_without_a_space() {
+        assert_eq!(dedent_text("› 中文，\n  測試\n"), "中文，測試\n");
+    }
+
+    #[test]
+    fn joins_latin_and_mixed_lines_with_one_space() {
+        assert_eq!(dedent_text("› alpha\n  beta\n"), "alpha beta\n");
+        assert_eq!(dedent_text("› Mermaid\n  技能\n"), "Mermaid 技能\n");
+    }
+
+    #[test]
+    fn preserves_blank_lines_as_paragraph_breaks() {
+        assert_eq!(
+            dedent_text("› 第一段\n  仍在同段\n\n  第二段\n  仍在第二段\n"),
+            "第一段仍在同段\n\n第二段仍在第二段\n"
+        );
+    }
+
+    #[test]
+    fn preserves_whitespace_only_blank_lines_as_paragraph_breaks() {
+        assert_eq!(
+            dedent_text("› 第一段\n  仍在同段\n  \n  第二段\n"),
+            "第一段仍在同段\n\n第二段\n"
+        );
+    }
+
+    #[test]
+    fn preserves_crlf_paragraph_breaks_when_unwrapping_prompt() {
+        assert_eq!(
+            dedent_text("› 第一段\r\n  仍在同段\r\n\r\n  第二段\r\n"),
+            "第一段仍在同段\r\n\r\n第二段\r\n"
+        );
+    }
+
+    #[test]
+    fn leaves_malformed_prompt_blocks_unchanged() {
+        assert_eq!(
+            dedent_text("› 第一行\n不是續行格式\n"),
+            "› 第一行\n不是續行格式\n"
+        );
     }
 
     #[test]
