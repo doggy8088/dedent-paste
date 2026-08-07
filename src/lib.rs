@@ -16,8 +16,13 @@ impl fmt::Display for DedentError {
 
 impl Error for DedentError {}
 
+enum PromptMode {
+    Unwrap,
+    PreserveLines,
+}
+
 pub fn dedent_text(input: &str) -> String {
-    let stripped_prompt = strip_prompt_prefix(input);
+    let (stripped_prompt, mode) = strip_prompt_prefix(input);
     let input = stripped_prompt.as_deref().unwrap_or(input);
 
     let min_indent = input
@@ -32,7 +37,7 @@ pub fn dedent_text(input: &str) -> String {
         .map(|line| dedent_line(line, min_indent))
         .collect();
 
-    if stripped_prompt.is_some() {
+    if matches!(mode, Some(PromptMode::Unwrap)) {
         unwrap_prompt_lines(&dedented)
     } else {
         dedented
@@ -50,14 +55,24 @@ fn dedent_line(line: &str, width: usize) -> String {
     format!("{body}{newline}")
 }
 
-fn strip_prompt_prefix(input: &str) -> Option<String> {
+fn strip_prompt_prefix(input: &str) -> (Option<String>, Option<PromptMode>) {
     let mut lines = input.split_inclusive('\n');
-    let first_line = lines.next()?;
+    let first_line = match lines.next() {
+        Some(line) => line,
+        None => return (None, None),
+    };
     let (first_body, first_newline) = split_trailing_newline(first_line);
-    let indent = prompt_indent(first_body)?;
+    let (indent, _) = match prompt_indent(first_body) {
+        Some(value) => value,
+        None => return (None, None),
+    };
 
     let mut stripped = String::new();
-    stripped.push_str(strip_prompt_marker(first_body, indent)?);
+    let (first_body, mode) = match strip_prompt_marker(first_body, indent) {
+        Some(value) => value,
+        None => return (None, None),
+    };
+    stripped.push_str(first_body);
     stripped.push_str(first_newline);
 
     for line in lines {
@@ -65,31 +80,49 @@ fn strip_prompt_prefix(input: &str) -> Option<String> {
         if is_blank_line(body) {
             stripped.push_str(body.trim_matches([' ', '\t']));
         } else {
-            stripped.push_str(body.strip_prefix(indent)?.strip_prefix("  ")?);
+            let Some(body) = body.strip_prefix(indent) else {
+                return (None, None);
+            };
+            let Some(body) = body.strip_prefix("  ") else {
+                return (None, None);
+            };
+            stripped.push_str(body);
         }
         stripped.push_str(newline);
     }
 
-    Some(stripped)
+    (Some(stripped), Some(mode))
 }
 
-fn prompt_indent(line: &str) -> Option<&str> {
+fn prompt_indent(line: &str) -> Option<(&str, PromptMode)> {
     for (idx, ch) in line.char_indices() {
         if ch == ' ' || ch == '\t' {
             continue;
         }
 
-        return (line[idx..].starts_with("❯ ") || line[idx..].starts_with("› "))
-            .then_some(&line[..idx]);
+        if line[idx..].starts_with("❯ ") || line[idx..].starts_with("› ") {
+            return Some((&line[..idx], PromptMode::Unwrap));
+        }
+
+        if line[idx..].starts_with("> ") {
+            return Some((&line[..idx], PromptMode::PreserveLines));
+        }
     }
 
     None
 }
 
-fn strip_prompt_marker<'a>(line: &'a str, indent: &str) -> Option<&'a str> {
+fn strip_prompt_marker<'a>(line: &'a str, indent: &str) -> Option<(&'a str, PromptMode)> {
     let line = line.strip_prefix(indent)?;
 
-    line.strip_prefix("❯ ").or_else(|| line.strip_prefix("› "))
+    if let Some(rest) = line.strip_prefix("❯ ") {
+        Some((rest, PromptMode::Unwrap))
+    } else if let Some(rest) = line.strip_prefix("› ") {
+        Some((rest, PromptMode::Unwrap))
+    } else {
+        line.strip_prefix("> ")
+            .map(|rest| (rest, PromptMode::PreserveLines))
+    }
 }
 
 fn unwrap_prompt_lines(input: &str) -> String {
@@ -271,6 +304,14 @@ mod tests {
                 "› 我想要分析整個專案 src/ 的原始碼結構與系統架構、資料庫結構(if any)、專案詞彙表(統一名詞解釋)、技術棧、共用模組、主要流程與維護注意事項，請幫我制定一套詳盡的分\n  析計畫，幫助我快速理解本專案。請設計給一位資深工程師可以輕鬆理解的分析報告。請建立多份 Markdown 文件，方便我快速理解架構。相關圖表要參考 $design-doc-mermaid\n  技能進行繪製。"
             ),
             "我想要分析整個專案 src/ 的原始碼結構與系統架構、資料庫結構(if any)、專案詞彙表(統一名詞解釋)、技術棧、共用模組、主要流程與維護注意事項，請幫我制定一套詳盡的分析計畫，幫助我快速理解本專案。請設計給一位資深工程師可以輕鬆理解的分析報告。請建立多份 Markdown 文件，方便我快速理解架構。相關圖表要參考 $design-doc-mermaid 技能進行繪製。"
+        );
+    }
+
+    #[test]
+    fn strips_markdown_style_blockquote_prefix_and_keeps_lines() {
+        assert_eq!(
+            dedent_text("> Hello 123\n  I'm Will.\n"),
+            "Hello 123\nI'm Will.\n"
         );
     }
 
