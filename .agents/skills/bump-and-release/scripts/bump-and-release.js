@@ -30,6 +30,9 @@ async function main() {
   const nextVersion = bumpVersion(currentVersion.version, args.bump);
   info(`版本推進：${currentVersion.version} -> ${nextVersion.version}`);
   info(`來源：${currentVersion.source}`);
+  if (currentVersion.packageName) {
+    info(`npm 套件名稱：${currentVersion.packageName}`);
+  }
 
   const changedPaths = [];
   if (currentVersion.packageJsonPath) {
@@ -61,6 +64,7 @@ async function main() {
 
   const branch = getBranch(repoRoot);
   info(`目前分支：${branch}`);
+  const headSha = getHeadSha(repoRoot);
 
   if (!args.skipChecks) {
     runChecks(repoRoot);
@@ -74,14 +78,33 @@ async function main() {
 
   if (!args.skipRelease) {
     if (!args.skipCi) {
+      info(`等待 CI 流程結果（head ${headSha}）`);
       try {
         triggerWorkflow(args.ciWorkflow, branch);
       } catch (error) {
         if (isWorkflowDispatchError(error.message)) {
-          warn(`CI workflow (${args.ciWorkflow}) 無 workflow_dispatch，已跳過 CI 手動觸發。`);
+          warn(`CI workflow (${args.ciWorkflow}) 無 workflow_dispatch，將改以 Push 觸發驗證。`);
         } else {
           throw error;
         }
+      }
+      const ciRun = await waitForWorkflowRun(
+        args.ciWorkflow,
+        branch,
+        headSha,
+        startTs,
+        repoRoot,
+      );
+      if (ciRun) {
+        if (ciRun.status !== "completed") {
+          throw new Error(`CI workflow (${args.ciWorkflow}) 未完成（目前 ${ciRun.status}）。`);
+        }
+        if (ciRun.conclusion !== "success") {
+          throw new Error(`CI workflow (${args.ciWorkflow}) 未通過：${ciRun.conclusion}`);
+        }
+        info(`CI workflow 已通過：${ciRun.url || "（無 URL）"}`);
+      } else {
+        warn("未即時抓到 CI workflow 結果，將不保證通過狀態。");
       }
     }
     triggerWorkflow(
@@ -91,30 +114,59 @@ async function main() {
         [args.releaseInput]: nextVersion.tag,
       },
     );
-    const releaseRun = await waitForLatestRun(
+    const releaseRun = await waitForWorkflowRun(
       args.releaseWorkflow,
       branch,
+      null,
       startTs,
       repoRoot,
     );
     if (releaseRun) {
+      if (releaseRun.status !== "completed") {
+        throw new Error(`Release workflow (${args.releaseWorkflow}) 未完成（目前 ${releaseRun.status}）。`);
+      }
+      if (releaseRun.conclusion !== "success") {
+        throw new Error(`Release workflow (${args.releaseWorkflow}) 未通過：${releaseRun.conclusion}`);
+      }
       info(`Release workflow 已完成：${releaseRun.url || "（無 URL）"}`);
     } else {
       warn("未即時抓到 Release workflow 結果，將直接嘗試修正 release notes。");
     }
 
     if (!args.skipReleaseNotes) {
-      if (!releaseNotesFromChangelog) {
-        warn("CHANGELOG.md 無法取得 release notes，將略過 release notes 修正。");
-      } else {
-        const publishedTag = await waitForRelease(nextVersion.tag);
-        if (publishedTag) {
-          updateReleaseNotes(nextVersion.tag, releaseNotesFromChangelog);
-          info("Release notes 已更新。");
+        if (!releaseNotesFromChangelog) {
+          warn("CHANGELOG.md 無法取得 release notes，將略過 release notes 修正。");
         } else {
-          warn(`release ${nextVersion.tag} 尚未建立，已略過 release notes 修正。`);
+          const publishedTag = await waitForRelease(nextVersion.tag);
+          const packageName = currentVersion.packageName || "dedent-paste";
+          if (publishedTag) {
+            const finalNotes = buildReleaseNotes(
+              nextVersion.version,
+              packageName,
+              releaseNotesFromChangelog,
+            );
+            updateReleaseNotes(nextVersion.tag, finalNotes);
+            const npmRun = await waitForReleaseTriggeredWorkflow(
+              args.npmWorkflow,
+              startTs,
+              repoRoot,
+            );
+            if (npmRun) {
+              if (npmRun.status === "completed" && npmRun.conclusion === "success") {
+                info(`npm workflow 已完成：${npmRun.url || "（無 URL）"}`);
+              } else if (npmRun.status === "completed") {
+                warn(`npm workflow 未通過：${npmRun.conclusion}。`);
+              } else {
+                warn(`npm workflow 尚未完成（目前 ${npmRun.status}）。`);
+              }
+            } else {
+              warn("未及時抓到 npm workflow 結果，請從 GitHub Actions 確認發佈狀態。");
+            }
+            info("Release notes 已更新。");
+          } else {
+            warn(`release ${nextVersion.tag} 尚未建立，已略過 release notes 修正。`);
+          }
         }
-      }
     }
   } else {
     info("skip-release 已啟用，跳過 workflow 觸發。");
@@ -284,6 +336,7 @@ function getCurrentVersion(repoRoot) {
   const result = {
     source: "",
     version: "",
+    packageName: "",
     packageJsonPath: null,
     cargoTomlPath: null,
   };
@@ -294,6 +347,9 @@ function getCurrentVersion(repoRoot) {
     if (pkg.version) {
       result.source = "package.json";
       result.version = pkg.version;
+      if (typeof pkg.name === "string") {
+        result.packageName = pkg.name;
+      }
       result.packageJsonPath = packagePath;
     }
   }
@@ -468,6 +524,10 @@ function getBranch(repoRoot) {
   return branch;
 }
 
+function getHeadSha(repoRoot) {
+  return run("git", ["rev-parse", "HEAD"], { cwd: repoRoot, silent: true });
+}
+
 function requireCleanTree(repoRoot, allowDirty) {
   const status = run("git", ["status", "--porcelain"], { cwd: repoRoot, silent: true });
   if (status) {
@@ -515,37 +575,7 @@ function triggerWorkflow(workflow, ref, inputs = {}) {
 }
 
 async function waitForLatestRun(workflow, branch, since, repoRoot) {
-  for (let i = 0; i < WAIT_MAX_ROUNDS; i += 1) {
-    const result = run(
-      "gh",
-      [
-        "run",
-        "list",
-        "--workflow",
-        workflow,
-        "--limit",
-        "20",
-        "--json",
-        "databaseId,status,conclusion,url,createdAt,headBranch",
-      ],
-      { cwd: repoRoot, silent: true },
-    );
-    if (result) {
-      const runs = JSON.parse(result);
-      const picked = runs
-        .filter((r) => r.headBranch === branch)
-        .filter((r) => Date.parse(r.createdAt) >= since - 60_000)
-        .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))[0];
-      if (picked) {
-        if (picked.status === "completed") {
-          return picked;
-        }
-        info(`workflow 仍在執行：${picked.status} ${picked.url || ""}`);
-      }
-    }
-    await delay(WAIT_MS);
-  }
-  return null;
+  return waitForWorkflowRun(workflow, branch, null, since, repoRoot);
 }
 
 async function waitForRelease(tag) {
@@ -582,6 +612,33 @@ function updateReleaseNotes(tag, releaseNotes) {
       fs.unlinkSync(tmp);
     }
   }
+}
+
+function buildReleaseNotes(version, packageName, changelogNotes) {
+  const npmPackage = packageName || "dedent-paste";
+  const npmDisplay = npmPackage;
+  const npmUrlName = encodeURIComponent(npmPackage);
+  const npmPackageUrl = `https://www.npmjs.com/package/${npmUrlName}`;
+  const npmVersionUrl = `https://www.npmjs.com/package/${npmUrlName}/v/${version}`;
+
+  const safeNotes = (changelogNotes || "").trim() || "- 尚未填寫";
+  const notes = safeNotes
+    .split("\n")
+    .map((line) => line.trimEnd())
+    .join("\n");
+
+  return [
+    `## 變更內容`,
+    "",
+    notes,
+    "",
+    `## npm 套件發佈資訊`,
+    "",
+    `- 套件：${npmDisplay}`,
+    `- npm 套件頁面：${npmPackageUrl}`,
+    `- 本次 npm 版本：${npmVersionUrl}`,
+    `- 安裝方式：\`npm install ${npmPackage}@${version}\``,
+  ].join("\n");
 }
 
 function requireCommand(command) {
@@ -641,6 +698,55 @@ function run(cmd, args = [], options = {}) {
   return (res.stdout || "").toString().trim();
 }
 
+async function waitForWorkflowRun(
+  workflow,
+  branch,
+  headSha,
+  since,
+  repoRoot,
+  opts = {},
+) {
+  for (let i = 0; i < WAIT_MAX_ROUNDS; i += 1) {
+    const result = run(
+      "gh",
+      [
+        "run",
+        "list",
+        "--workflow",
+        workflow,
+        "--limit",
+        "20",
+        "--json",
+        "databaseId,status,conclusion,url,createdAt,headBranch,headSha,event",
+      ],
+      { cwd: repoRoot, silent: true },
+    );
+    if (result) {
+      const runs = JSON.parse(result);
+      const picked = runs
+        .filter((r) => {
+          if (branch && r.headBranch && r.headBranch !== branch) return false;
+          if (opts.event && r.event !== opts.event) return false;
+          if (headSha && r.headSha && r.headSha !== headSha) return false;
+          if (since !== undefined && since !== null) {
+            return Date.parse(r.createdAt) >= since - 60_000;
+          }
+          return true;
+        })
+        .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))[0];
+
+      if (picked) {
+        if (picked.status === "completed") {
+          return picked;
+        }
+        info(`workflow 仍在執行：${picked.status} ${picked.url || ""}`);
+      }
+    }
+    await delay(WAIT_MS);
+  }
+  return null;
+}
+
 function isWorkflowDispatchError(message) {
   return String(message).includes("does not have 'workflow_dispatch' trigger");
 }
@@ -659,4 +765,8 @@ function warn(msg) {
 
 function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function waitForReleaseTriggeredWorkflow(workflow, since, repoRoot) {
+  return waitForWorkflowRun(workflow, null, null, since, repoRoot, { event: "release" });
 }
