@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+## 0.2.6
+
+- 尚未填寫
+
 ## 0.2.5
 
 - 尚未填寫
