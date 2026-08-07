@@ -1,0 +1,5 @@
+interface:
+  display_name: "Bump And Release"
+  short_description: "Automate version bump, release, and npm publish workflows."
+policy:
+  allow_implicit_invocation: false
