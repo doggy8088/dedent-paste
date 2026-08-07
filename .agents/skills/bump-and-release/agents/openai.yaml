@@ -1,5 +1,6 @@
 interface:
   display_name: "Bump And Release"
-  short_description: "Automate version bump, release, and npm publish workflows."
+  short_description: "Audit changelogs, bump versions, and publish npm releases."
+  default_prompt: "Use $bump-and-release to audit CHANGELOG.md, bump the patch version, and publish the release."
 policy:
   allow_implicit_invocation: false

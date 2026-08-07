@@ -1,13 +1,9 @@
 ---
 name: bump-and-release
-description: 幫專案自動化「提升版本、更新變更紀錄、觸發 CI、建立 Release、修正 Release notes、並用 trusted publishing 發佈 npm 套件」的工作流程，適用於輸入「$bump-and-release」或「$bump-and-release minor version」等呼叫時。
+description: 自動稽核並更新 CHANGELOG、依 Git 歷史回補缺漏 Release notes、提升版本、觸發 CI、建立 GitHub Release，並用 trusted publishing 發佈 npm 套件。使用於「$bump-and-release」、「$bump-and-release minor version」或要求建立新版本與發佈套件時。
 ---
 
 # Bump And Release
-
-## 適用情境
-
-在使用 `package.json` 或 `Cargo.toml` 且以 GitHub Actions 發佈的專案，用一句命令完成版本發佈前置流程。
 
 ## 目標
 
@@ -15,12 +11,24 @@ description: 幫專案自動化「提升版本、更新變更紀錄、觸發 CI�
 
 - 依預設 `patch` 或指定 `minor` 提升版本
 - 更新 `Cargo.toml`、`package.json` 的版本（若檔案存在）
+- 比對 Git 標籤與版本區間提交，回補 `CHANGELOG.md` 缺少、空白或占位的歷史 Release notes
+- 將目前尚未發佈的真實變更寫入 `CHANGELOG.md` 的 `Unreleased`
 - 將 `CHANGELOG.md` 的 `Unreleased` 內容移到新版本段落
 - 觸發 CI workflow
 - 透過 `workflow_dispatch` 觸發 `release` workflow 建立 Release
 - 依 `CHANGELOG.md` 修正 Release notes
 - 透過 trusted publishing 方式發佈 npm（依賴 Release 的 `published` 事件）
 - 避免重複發佈：預設不再手動 `workflow_dispatch` 觸發 `npm-publish.yml`
+
+## 必要流程
+
+1. 先讀取目標專案的 `AGENTS.md` 與提交規範。
+2. 執行 `git status`、`git tag --sort=version:refname`，並比對 `CHANGELOG.md` 的版本段落。
+3. 將下列情況視為缺漏：已發佈標籤沒有版本段落、版本段落為空、內容只有 `尚未填寫`、`TBD`、`TODO` 等占位文字。
+4. 針對缺漏版本，以 `git log <前一標籤>..<版本標籤>` 找出候選提交，再用 `git show` 驗證實際差異後撰寫摘要。不得只依提交標題臆測，也不得把變更歸入未建立標籤的版本。
+5. 以最新版本標籤至 `HEAD` 的實際差異更新 `Unreleased`。若沒有可驗證變更，停止發佈，不得產生占位 Release notes。
+6. 執行腳本。腳本允許只有 `CHANGELOG.md` 預先修改並將其納入版本提交；其他未提交檔案仍會阻止發佈，除非明確使用 `--allow-dirty`。
+7. 確認新版本段落、GitHub Release notes 與 npm 版本資訊一致。
 
 ## 指令
 
@@ -56,6 +64,8 @@ description: 幫專案自動化「提升版本、更新變更紀錄、觸發 CI�
 - `node scripts/bump-and-release.js --repo /path/to/repo --skip-checks`
 
 腳本會在每個步驟輸出結果，遇到錯誤即以 `exit 1` 結束。
+
+腳本會在改動版本檔案前稽核 `CHANGELOG.md`。若檔案不存在、`Unreleased` 無實際內容、歷史版本有空白或占位 Release notes，或 Git 版本標籤缺少對應段落，腳本會停止；先依上述必要流程回補後再執行。
 
 ## 參考
 

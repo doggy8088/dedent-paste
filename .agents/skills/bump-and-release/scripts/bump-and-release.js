@@ -34,7 +34,8 @@ async function main() {
     info(`npm 套件名稱：${currentVersion.packageName}`);
   }
 
-  requireCleanTree(repoRoot, args.allowDirty);
+  requireCleanTree(repoRoot, args.allowDirty, ["CHANGELOG.md"]);
+  auditChangelog(repoRoot, nextVersion.version);
 
   const changedPaths = [];
   if (currentVersion.packageJsonPath) {
@@ -501,11 +502,107 @@ function syncCargoLock(repoRoot) {
   return before !== after;
 }
 
+function auditChangelog(repoRoot, nextVersion) {
+  const changelogPath = path.join(repoRoot, "CHANGELOG.md");
+  if (!fs.existsSync(changelogPath)) {
+    throw new Error(
+      "找不到 CHANGELOG.md；請先依 Git 標籤與提交紀錄建立變更紀錄，再執行發佈。",
+    );
+  }
+
+  const text = fs.readFileSync(changelogPath, "utf8");
+  const sections = parseChangelogSections(text);
+  const issues = [];
+  const unreleased = sections.find((section) => section.title === "Unreleased");
+
+  if (!unreleased) {
+    issues.push("缺少 ## Unreleased 區段");
+  } else if (!hasMeaningfulReleaseNotes(unreleased.body)) {
+    issues.push("## Unreleased 沒有實際變更內容或仍是占位文字");
+  }
+
+  const versions = new Map();
+  for (const section of sections) {
+    const match = section.title.match(/^v?(\d+\.\d+\.\d+)(?=\s|（|\(|$)/);
+    if (!match) continue;
+    const version = match[1];
+    if (versions.has(version)) {
+      issues.push(`版本 ${version} 出現重複段落`);
+      continue;
+    }
+    versions.set(version, section);
+    if (!hasMeaningfulReleaseNotes(section.body)) {
+      issues.push(`版本 ${version} 沒有實際 Release notes 或仍是占位文字`);
+    }
+  }
+
+  if (versions.has(nextVersion)) {
+    issues.push(`下一版 ${nextVersion} 已存在，無法再次建立相同版本段落`);
+  }
+
+  const tags = run("git", ["tag", "--merged", "HEAD", "--list"], {
+    cwd: repoRoot,
+    silent: true,
+  })
+    .split(/\r?\n/)
+    .map((tag) => tag.trim())
+    .filter(Boolean);
+  for (const tag of tags) {
+    const match = tag.match(/^v?(\d+\.\d+\.\d+)$/);
+    if (match && !versions.has(match[1])) {
+      issues.push(`Git 標籤 ${tag} 缺少對應的 CHANGELOG.md 版本段落`);
+    }
+  }
+
+  if (issues.length > 0) {
+    throw new Error([
+      "CHANGELOG.md 檢查失敗：",
+      ...issues.map((issue) => `- ${issue}`),
+      "請依各版本 Git 標籤區間的 git log 與 git show 回補真實變更後再執行。",
+    ].join("\n"));
+  }
+
+  info(`CHANGELOG.md 檢查通過：${versions.size} 個版本段落`);
+}
+
+function parseChangelogSections(text) {
+  const lines = text.split(/\r?\n/);
+  const headings = [];
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const match = lines[index].match(/^##\s+(.+?)\s*$/);
+    if (match) {
+      headings.push({ index, title: match[1] });
+    }
+  }
+
+  return headings.map((heading, index) => {
+    const next = headings[index + 1];
+    const end = next ? next.index : lines.length;
+    return {
+      title: heading.title,
+      body: lines.slice(heading.index + 1, end).join("\n").trim(),
+    };
+  });
+}
+
+function hasMeaningfulReleaseNotes(body) {
+  const withoutComments = String(body || "").replace(/<!--[\s\S]*?-->/g, "");
+  const lines = withoutComments
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line && !/^#{3,}\s+/.test(line) && !/^(?:[-*_]\s*){3,}$/.test(line));
+
+  if (lines.length === 0) return false;
+
+  const placeholder = /^(?:[-*+]\s+)?(?:尚未填寫|待補|待補充|tbd|todo|to be determined|release notes? pending)(?:[。.!！])?$/i;
+  return !lines.some((line) => placeholder.test(line));
+}
+
 function updateChangelog(repoRoot, version) {
   const changelogPath = path.join(repoRoot, "CHANGELOG.md");
   if (!fs.existsSync(changelogPath)) {
-    warn("找不到 CHANGELOG.md，跳過 notes 移轉。");
-    return "";
+    throw new Error("找不到 CHANGELOG.md，無法建立版本 Release notes。");
   }
 
   const text = fs.readFileSync(changelogPath, "utf8");
@@ -524,7 +621,10 @@ function updateChangelog(repoRoot, version) {
     .slice(unreleasedIndex + 1, nextIndex)
     .join("\n")
     .replace(/^\s*[\r\n]+|[\r\n]+\s*$/g, "");
-  const releaseNotes = unreleasedRaw || "- 尚未填寫";
+  if (!hasMeaningfulReleaseNotes(unreleasedRaw)) {
+    throw new Error("CHANGELOG.md 的 ## Unreleased 沒有可用 Release notes。");
+  }
+  const releaseNotes = unreleasedRaw;
   const remainder = lines.slice(nextIndex);
 
   const nextLines = [];
@@ -555,14 +655,31 @@ function getHeadSha(repoRoot) {
   return run("git", ["rev-parse", "HEAD"], { cwd: repoRoot, silent: true });
 }
 
-function requireCleanTree(repoRoot, allowDirty) {
-  const status = run("git", ["status", "--porcelain"], { cwd: repoRoot, silent: true });
+function requireCleanTree(repoRoot, allowDirty, allowedDirtyPaths = []) {
+  const status = run("git", ["status", "--porcelain"], {
+    cwd: repoRoot,
+    silent: true,
+    trim: false,
+  }).trimEnd();
   if (status) {
+    const allowed = new Set(allowedDirtyPaths);
+    const dirtyPaths = status
+      .split(/\r?\n/)
+      .filter(Boolean)
+      .map((line) => line.slice(3).split(" -> ").pop());
+    const disallowed = dirtyPaths.filter((filePath) => !allowed.has(filePath));
+
+    if (disallowed.length === 0) {
+      info(`偵測到預先更新的 ${dirtyPaths.join(", ")}，將納入版本提交。`);
+      return;
+    }
     if (allowDirty) {
       warn("allow-dirty 啟用，將繼續，但有未提交變更。");
       return;
     }
-    throw new Error("工作目錄有未提交變更，請先提交後再執行（或加 --allow-dirty）。");
+    throw new Error(
+      `工作目錄有未提交變更：${disallowed.join(", ")}。請先提交後再執行（或加 --allow-dirty）。`,
+    );
   }
 }
 
@@ -648,7 +765,10 @@ function buildReleaseNotes(version, packageName, changelogNotes) {
   const npmPackageUrl = `https://www.npmjs.com/package/${npmUrlName}`;
   const npmVersionUrl = `https://www.npmjs.com/package/${npmUrlName}/v/${version}`;
 
-  const safeNotes = (changelogNotes || "").trim() || "- 尚未填寫";
+  const safeNotes = (changelogNotes || "").trim();
+  if (!hasMeaningfulReleaseNotes(safeNotes)) {
+    throw new Error("CHANGELOG.md 沒有可用內容，拒絕建立空白或占位 Release notes。");
+  }
   const notes = safeNotes
     .split("\n")
     .map((line) => line.trimEnd())
@@ -702,6 +822,7 @@ function run(cmd, args = [], options = {}) {
     silent = false,
     stream = false,
     label = cmd,
+    trim = true,
   } = options;
 
   if (stream) {
@@ -722,7 +843,8 @@ function run(cmd, args = [], options = {}) {
     const detail = [err, out].filter(Boolean).join("\n");
     throw new Error(`${label} 回傳錯誤 (${res.status})${detail ? `: ${detail}` : ""}`);
   }
-  return (res.stdout || "").toString().trim();
+  const stdout = (res.stdout || "").toString();
+  return trim ? stdout.trim() : stdout;
 }
 
 async function waitForWorkflowRun(
