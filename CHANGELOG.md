@@ -4,6 +4,18 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+## 0.2.5
+
+- 尚未填寫
+
+## 0.2.4
+
+- 尚未填寫
+
+## 0.2.3
+
+- 尚未填寫
+
 ## 0.2.2
 
 - 支援移除 Codex CLI 的 `›` 提示符，並保留既有的 `❯` 提示符相容性。

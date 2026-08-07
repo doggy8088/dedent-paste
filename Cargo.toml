@@ -1,6 +1,6 @@
 [package]
 name = "dedent-paste"
-version = "0.2.2"
+version = "0.2.5"
 edition = "2024"
 authors = ["Will 保哥"]
 license = "MIT"
@@ -16,3 +16,6 @@ windows-sys = { version = "0.61.2", features = ["Win32_UI_Input_KeyboardAndMouse
 [profile.dist]
 inherits = "release"
 lto = "thin"
+
+
+
