@@ -75,6 +75,7 @@ async function main() {
   pushBranchAndTag(repoRoot, branch, nextVersion.tag);
 
   const startTs = Date.now();
+  let releaseInitiatedNpm = false;
 
   if (!args.skipRelease) {
     if (!args.skipCi) {
@@ -134,45 +135,71 @@ async function main() {
     }
 
     if (!args.skipReleaseNotes) {
-        if (!releaseNotesFromChangelog) {
-          warn("CHANGELOG.md 無法取得 release notes，將略過 release notes 修正。");
-        } else {
-          const publishedTag = await waitForRelease(nextVersion.tag);
-          const packageName = currentVersion.packageName || "dedent-paste";
-          if (publishedTag) {
-            const finalNotes = buildReleaseNotes(
-              nextVersion.version,
-              packageName,
-              releaseNotesFromChangelog,
-            );
-            updateReleaseNotes(nextVersion.tag, finalNotes);
-            const npmRun = await waitForReleaseTriggeredWorkflow(
-              args.npmWorkflow,
-              startTs,
-              repoRoot,
-            );
-            if (npmRun) {
-              if (npmRun.status === "completed" && npmRun.conclusion === "success") {
-                info(`npm workflow 已完成：${npmRun.url || "（無 URL）"}`);
-              } else if (npmRun.status === "completed") {
-                warn(`npm workflow 未通過：${npmRun.conclusion}。`);
-              } else {
-                warn(`npm workflow 尚未完成（目前 ${npmRun.status}）。`);
-              }
+      if (!releaseNotesFromChangelog) {
+        warn("CHANGELOG.md 無法取得 release notes，將略過 release notes 修正。");
+      } else {
+        const publishedTag = await waitForRelease(nextVersion.tag);
+        const packageName = currentVersion.packageName || "dedent-paste";
+        if (publishedTag) {
+          const finalNotes = buildReleaseNotes(
+            nextVersion.version,
+            packageName,
+            releaseNotesFromChangelog,
+          );
+          updateReleaseNotes(nextVersion.tag, finalNotes);
+          const npmRun = await waitForReleaseTriggeredWorkflow(
+            args.npmWorkflow,
+            startTs,
+            repoRoot,
+          );
+          if (npmRun) {
+            releaseInitiatedNpm = true;
+            if (npmRun.status === "completed" && npmRun.conclusion === "success") {
+              info(`npm workflow 已完成：${npmRun.url || "（無 URL）"}`);
+            } else if (npmRun.status === "completed") {
+              warn(`npm workflow 未通過：${npmRun.conclusion}。`);
             } else {
-              warn("未及時抓到 npm workflow 結果，請從 GitHub Actions 確認發佈狀態。");
+              warn(`npm workflow 尚未完成（目前 ${npmRun.status}）。`);
             }
-            info("Release notes 已更新。");
           } else {
-            warn(`release ${nextVersion.tag} 尚未建立，已略過 release notes 修正。`);
+            warn("未及時抓到 release 事件觸發的 npm workflow，將嘗試 fallback 透過 workflow_dispatch。");
+            try {
+              triggerWorkflow(args.npmWorkflow, branch);
+              releaseInitiatedNpm = true;
+              const fallbackRun = await waitForLatestRun(
+                args.npmWorkflow,
+                branch,
+                startTs,
+                repoRoot,
+              );
+              if (fallbackRun) {
+                if (fallbackRun.status === "completed") {
+                  if (fallbackRun.conclusion === "success") {
+                    info(`npm workflow 已完成：${fallbackRun.url || "（無 URL）"}`);
+                  } else {
+                    warn(`npm workflow 未通過：${fallbackRun.conclusion}。`);
+                  }
+                } else {
+                  warn(`npm workflow 尚未完成（目前 ${fallbackRun.status}）。`);
+                }
+              } else {
+                warn("未即時抓到 fallback 的 npm workflow，請從 GitHub Actions 確認發佈狀態。");
+              }
+            } catch (error) {
+              warn(`嘗試 fallback 觸發 npm workflow 失敗：${error.message}`);
+            }
           }
+          info("Release notes 已更新。");
+        } else {
+          warn(`release ${nextVersion.tag} 尚未建立，已略過 release notes 修正。`);
         }
+      }
     }
   } else {
     info("skip-release 已啟用，跳過 workflow 觸發。");
   }
 
-  if (!args.skipRelease && args.publishNpm && !args.skipNpm) {
+  if (!args.skipRelease && args.publishNpm && !args.skipNpm && !releaseInitiatedNpm) {
     validateTrustedNpmWorkflow(repoRoot, args.npmWorkflow);
     triggerWorkflow(args.npmWorkflow, branch);
     const npmRun = await waitForLatestRun(args.npmWorkflow, branch, startTs, repoRoot);
@@ -748,7 +775,8 @@ async function waitForWorkflowRun(
 }
 
 function isWorkflowDispatchError(message) {
-  return String(message).includes("does not have 'workflow_dispatch' trigger");
+  const normalized = String(message).toLowerCase();
+  return normalized.includes("does not have") && normalized.includes("workflow_dispatch");
 }
 
 function relative(base, target) {
