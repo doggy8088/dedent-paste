@@ -107,7 +107,7 @@ async function main() {
     info("skip-release 已啟用，跳過 workflow 觸發。");
   }
 
-  if (!args.skipNpm && !args.skipRelease) {
+  if (!args.skipRelease && args.publishNpm && !args.skipNpm) {
     validateTrustedNpmWorkflow(repoRoot, args.npmWorkflow);
     triggerWorkflow(args.npmWorkflow, branch);
     const npmRun = await waitForLatestRun(args.npmWorkflow, branch, startTs, repoRoot);
@@ -117,7 +117,9 @@ async function main() {
       warn("未即時抓到 npm workflow 結果，請從 GitHub Actions 確認發佈狀態。");
     }
   } else if (args.skipNpm) {
-    info("skip-npm 已啟用，跳過 npm 發佈流程。");
+    info("skip-npm 已啟用，跳過手動 npm 發佈流程。");
+  } else if (!args.publishNpm) {
+    info("已關閉手動發佈（預設），將依靠 release 事件自動觸發 npm 發佈。");
   }
 }
 
@@ -132,7 +134,8 @@ function parseArgs(argv) {
     dryRun: false,
     skipRelease: false,
     skipReleaseNotes: false,
-    skipNpm: false,
+    publishNpm: false,
+    skipNpm: true,
     skipChecks: false,
     skipCi: false,
     allowDirty: false,
@@ -189,6 +192,7 @@ function parseArgs(argv) {
     if (arg === "--dry-run") parsed.dryRun = true;
     else if (arg === "--skip-release") parsed.skipRelease = true;
     else if (arg === "--skip-release-notes") parsed.skipReleaseNotes = true;
+    else if (arg === "--publish-npm") parsed.publishNpm = true;
     else if (arg === "--skip-npm") parsed.skipNpm = true;
     else if (arg === "--skip-checks") parsed.skipChecks = true;
     else if (arg === "--skip-ci") parsed.skipCi = true;
@@ -224,7 +228,8 @@ function usage() {
   --dry-run                 僅模擬，不推送與觸發 workflow
   --skip-release            只做版本更新與 CHANGELOG 處理
   --skip-release-notes      不修正 release notes
-  --skip-npm                不觸發 npm 發佈 workflow
+  --publish-npm             明確啟用手動觸發 npm 發佈 workflow（預設關閉）
+  --skip-npm                跳過手動 npm 發佈 workflow
   --skip-ci                 跳過 CI workflow 觸發
   --skip-checks             跳過本機檢查
   --allow-dirty             允許未提交變更

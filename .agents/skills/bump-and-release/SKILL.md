@@ -19,7 +19,8 @@ description: 幫專案自動化「提升版本、更新變更紀錄、觸發 CI�
 - 觸發 CI workflow
 - 透過 `workflow_dispatch` 觸發 `release` workflow 建立 Release
 - 依 `CHANGELOG.md` 修正 Release notes
-- 透過 trusted publishing 方式發佈 npm（預設觸發 `npm-publish.yml`）
+- 透過 trusted publishing 方式發佈 npm（依賴 Release 的 `published` 事件）
+- 避免重複發佈：預設不再手動 `workflow_dispatch` 觸發 `npm-publish.yml`
 
 ## 指令
 
@@ -40,7 +41,8 @@ description: 幫專案自動化「提升版本、更新變更紀錄、觸發 CI�
 - `--dry-run`：僅模擬執行，不推播、不觸發 workflow
 - `--skip-release`：僅做版本更新與 release notes 搬移
 - `--skip-release-notes`：不更新 Release notes
-- `--skip-npm`：不觸發 npm 發佈 workflow
+- `--publish-npm`：明確啟用手動觸發 npm 發佈 workflow（預設關閉）
+- `--skip-npm`：不觸發手動 npm 發佈 workflow
 - `--skip-ci`：不觸發 CI workflow
 - `--skip-checks`：略過本機驗證（`cargo fmt/test/build`、`npm test`）
 - `--allow-dirty`：允許有未提交變更的工作目錄（不建議）
@@ -50,7 +52,7 @@ description: 幫專案自動化「提升版本、更新變更紀錄、觸發 CI�
 
 - `node scripts/bump-and-release.js`（預設 `patch`）
 - `node scripts/bump-and-release.js minor version`
-- `node scripts/bump-and-release.js --skip-release-notes --skip-npm`
+- `node scripts/bump-and-release.js --publish-npm --skip-release-notes`
 - `node scripts/bump-and-release.js --repo /path/to/repo --skip-checks`
 
 腳本會在每個步驟輸出結果，遇到錯誤即以 `exit 1` 結束。

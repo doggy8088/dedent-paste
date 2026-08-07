@@ -18,12 +18,13 @@
 5. 推播分支與 tag
 6. 觸發 CI 與 release workflow
 7. 等候對應 release workflow 完成後，修正 GitHub Release notes（使用 `CHANGELOG.md` 的新段落）
-8. 觸發 npm 發佈 workflow（預設 `npm-publish.yml`）
+8. 預設不手動觸發 npm 發佈 workflow；由 `npm-publish.yml` 的 `on: release`（published）負責自動發佈
+   - 如需手動觸發，啟用 `--publish-npm`
 
 ## 依賴流程假設
 
 - release workflow 為 `workflow_dispatch` 可手動觸發，並接受 `tag`（或你在參數指定的欄位）作為 release tag。
-- npm workflow 可透過 `workflow_dispatch` 觸發。
+- npm workflow 預設由 `release` 事件自動觸發；在極少數手動補發情境下，可選擇透過參數手動觸發。
 - npm 發佈流程採用 trusted publishing 時，workflow 內至少需包含：
   - `permissions: id-token: write`
   - `npm publish --provenance` 指令（或同義的可信發佈參數）
@@ -45,4 +46,3 @@
 ## 針對 `minor version` 的片語
 
 - 你可用 `minor version` 當作兩個位置參數，腳本會判斷出 `minor` 進行 bump。
-
