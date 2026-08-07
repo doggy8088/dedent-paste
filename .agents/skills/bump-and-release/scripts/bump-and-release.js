@@ -40,6 +40,11 @@ async function main() {
     updateCargoVersion(currentVersion.cargoTomlPath, nextVersion.version);
     changedPaths.push(relative(repoRoot, currentVersion.cargoTomlPath));
   }
+  if (currentVersion.cargoTomlPath) {
+    if (syncCargoLock(repoRoot)) {
+      changedPaths.push("Cargo.lock");
+    }
+  }
 
   const releaseNotesFromChangelog = updateChangelog(repoRoot, nextVersion.version);
   if (releaseNotesFromChangelog) {
@@ -69,7 +74,15 @@ async function main() {
 
   if (!args.skipRelease) {
     if (!args.skipCi) {
-      triggerWorkflow(args.ciWorkflow, branch);
+      try {
+        triggerWorkflow(args.ciWorkflow, branch);
+      } catch (error) {
+        if (isWorkflowDispatchError(error.message)) {
+          warn(`CI workflow (${args.ciWorkflow}) 無 workflow_dispatch，已跳過 CI 手動觸發。`);
+        } else {
+          throw error;
+        }
+      }
     }
     triggerWorkflow(
       args.releaseWorkflow,
@@ -393,6 +406,18 @@ function updateCargoVersion(filePath, nextVersion) {
   fs.writeFileSync(filePath, `${lines.join("\n")}\n`, "utf8");
 }
 
+function syncCargoLock(repoRoot) {
+  const lockPath = path.join(repoRoot, "Cargo.lock");
+  if (!fs.existsSync(lockPath)) {
+    return false;
+  }
+
+  const before = fs.readFileSync(lockPath, "utf8");
+  run("cargo", ["generate-lockfile", "--offline"], { cwd: repoRoot, stream: true, label: "cargo generate-lockfile" });
+  const after = fs.readFileSync(lockPath, "utf8");
+  return before !== after;
+}
+
 function updateChangelog(repoRoot, version) {
   const changelogPath = path.join(repoRoot, "CHANGELOG.md");
   if (!fs.existsSync(changelogPath)) {
@@ -614,6 +639,10 @@ function run(cmd, args = [], options = {}) {
     throw new Error(`${label} 回傳錯誤 (${res.status})${detail ? `: ${detail}` : ""}`);
   }
   return (res.stdout || "").toString().trim();
+}
+
+function isWorkflowDispatchError(message) {
+  return String(message).includes("does not have 'workflow_dispatch' trigger");
 }
 
 function relative(base, target) {
