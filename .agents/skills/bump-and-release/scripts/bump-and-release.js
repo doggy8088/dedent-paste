@@ -34,6 +34,8 @@ async function main() {
     info(`npm 套件名稱：${currentVersion.packageName}`);
   }
 
+  requireCleanTree(repoRoot, args.allowDirty);
+
   const changedPaths = [];
   if (currentVersion.packageJsonPath) {
     updatePackageVersion(currentVersion.packageJsonPath, nextVersion.version);
@@ -59,8 +61,6 @@ async function main() {
     info(`預計變更檔案：${changedPaths.join(", ") || "（無變更）"}`);
     return;
   }
-
-  requireCleanTree(repoRoot, args.allowDirty);
 
   const branch = getBranch(repoRoot);
   info(`目前分支：${branch}`);
