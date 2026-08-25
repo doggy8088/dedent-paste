@@ -80,7 +80,7 @@ dependencies = [
 
 [[package]]
 name = "dedent-paste"
-version = "0.2.6"
+version = "0.3.0"
 dependencies = [
  "base64",
  "clipboard-win",

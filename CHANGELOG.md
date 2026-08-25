@@ -4,6 +4,8 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+## 0.3.0
+
 - 新增 Gemini 圖片轉文字功能：剪貼簿沒有文字但有圖片時，自動以 Gemini（預設 `gemini-3.7-flash`）辨識圖片文字為格式化文字，或在圖片沒有文字時產生圖片描述（預設 `zh-TW`），並貼上結果。
 - 新增 `DEDENT_PASTE_GEMINI_API_KEY`（備援 `GEMINI_API_KEY`）、`DEDENT_PASTE_GEMINI_MODEL`、`DEDENT_PASTE_LANG`（備援 `LANG`）、`DEDENT_PASTE_GEMINI_SYSTEM_PROMPT`、`DEDENT_PASTE_GEMINI_SYSTEM_PROMPT_FILE`、`DEDENT_PASTE_GEMINI_TIMEOUT_SECS` 與 `DEDENT_PASTE_LOG_FILE` 環境變數。
 - 新增記錄檔功能：未設定 API 金鑰或剪貼簿沒有內容時靜默結束並只寫入記錄檔；其他圖片轉文字錯誤會顯示系統通知（macOS 通知中心、Windows 錯誤對話方塊）且不更動剪貼簿。
