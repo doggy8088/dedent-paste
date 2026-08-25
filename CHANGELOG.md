@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file.
 
 - 修正 Codex CLI 提示格式（`❯`、`›`）的換行接合：行尾為句末標點（`。！？.!?…`，後方可接右引號或右括號）時，視為使用者實際輸入的換行並保留，不再與下一行接合。
 - 修正提示格式偵測：提示符（`❯`、`›`、`>`）後方與續行縮排的空白不再限定 ASCII 空白，也接受不換行空白（U+00A0）、全形空白（U+3000）等 Unicode 空白字元，避免終端機複製出的 NBSP 導致整段文字未被處理。
+- `install.sh` 產生的 Karabiner 規則改為先載入 `~/.config/dedent-paste/env` 再執行 `dedent-paste`，讓 Karabiner 觸發時也能讀到 `GEMINI_API_KEY`，圖片轉文字功能不需再手動修改 `karabiner.json`；安裝完成時若環境變數檔不存在，會顯示建立方式的提示。
 
 ## 0.3.0
 

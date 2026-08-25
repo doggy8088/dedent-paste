@@ -50,6 +50,10 @@ description = os.environ["DESCRIPTION"]
 asset_path = Path.home() / ".config" / "karabiner" / "assets" / "complex_modifications" / "paste-dedent-plain-text.json"
 karabiner_path = Path.home() / ".config" / "karabiner" / "karabiner.json"
 
+# Source the dedent-paste env file (GEMINI_API_KEY etc.) so the image-to-text
+# feature works when triggered from Karabiner, which does not load shell rc files.
+shell_command = f'. "$HOME/.config/dedent-paste/env" 2>/dev/null; exec {binary_path}'
+
 rule = {
     "description": description,
     "manipulators": [
@@ -58,7 +62,7 @@ rule = {
                 "key_code": "v",
                 "modifiers": {"mandatory": ["option"]},
             },
-            "to": [{"shell_command": str(binary_path)}],
+            "to": [{"shell_command": shell_command}],
             "type": "basic",
         }
     ],
@@ -100,6 +104,16 @@ PY
 
 if command -v karabiner_cli >/dev/null 2>&1; then
   karabiner_cli --lint-complex-modifications "$asset_path"
+fi
+
+env_file="$HOME/.config/dedent-paste/env"
+if [[ ! -f "$env_file" ]]; then
+  cat <<EOF
+To enable image-to-text (Gemini), create $env_file with your API key:
+  mkdir -p "\$HOME/.config/dedent-paste"
+  printf 'export GEMINI_API_KEY="你的金鑰"\n' > "$env_file"
+  chmod 600 "$env_file"
+EOF
 fi
 
 echo "Done. Press Option+V to run dedent-paste."
