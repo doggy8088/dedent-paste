@@ -4,9 +4,13 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+## 0.3.1
+
 - 修正 Codex CLI 提示格式（`❯`、`›`）的換行接合：行尾為句末標點（`。！？.!?…`，後方可接右引號或右括號）時，視為使用者實際輸入的換行並保留，不再與下一行接合。
 - 修正提示格式偵測：提示符（`❯`、`›`、`>`）後方與續行縮排的空白不再限定 ASCII 空白，也接受不換行空白（U+00A0）、全形空白（U+3000）等 Unicode 空白字元，避免終端機複製出的 NBSP 導致整段文字未被處理。
 - `install.sh` 產生的 Karabiner 規則改為先載入 `~/.config/dedent-paste/env` 再執行 `dedent-paste`，讓 Karabiner 觸發時也能讀到 `GEMINI_API_KEY`，圖片轉文字功能不需再手動修改 `karabiner.json`；安裝完成時若環境變數檔不存在，會顯示建立方式的提示。
+- GitHub Pages 站台目錄由 `docs/` 改為 `public/`，並限制自動部署只在 `public/**` 變更時觸發，仍保留手動重新部署功能。
+- 升級 GitHub Pages workflow 使用 Node.js 24 相容的 actions，避免 runner 的 Node.js 20 淘汰警告。
 
 ## 0.3.0
 

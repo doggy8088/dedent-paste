@@ -1,6 +1,6 @@
 {
   "name": "dedent-paste",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Remove shared indentation from clipboard text and paste it.",
   "bin": {
     "dedent-paste": "npm/cli.cjs"
