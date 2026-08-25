@@ -82,12 +82,12 @@ fn strip_prompt_prefix(input: &str) -> (Option<String>, Option<PromptMode>) {
     for line in lines {
         let (body, newline) = split_trailing_newline(line);
         if is_blank_line(body) {
-            stripped.push_str(body.trim_matches([' ', '\t']));
+            stripped.push_str(body.trim_matches(is_inline_space));
         } else {
             let Some(body) = body.strip_prefix(indent) else {
                 return (None, None);
             };
-            let Some(body) = body.strip_prefix("  ") else {
+            let Some(body) = strip_inline_spaces(body, 2) else {
                 return (None, None);
             };
             stripped.push_str(body);
@@ -100,33 +100,51 @@ fn strip_prompt_prefix(input: &str) -> (Option<String>, Option<PromptMode>) {
 
 fn prompt_indent(line: &str) -> Option<(&str, PromptMode)> {
     for (idx, ch) in line.char_indices() {
-        if ch == ' ' || ch == '\t' {
+        if is_inline_space(ch) {
             continue;
         }
 
-        if line[idx..].starts_with("❯ ") || line[idx..].starts_with("› ") {
-            return Some((&line[..idx], PromptMode::Unwrap));
-        }
-
-        if line[idx..].starts_with("> ") {
-            return Some((&line[..idx], PromptMode::PreserveLines));
-        }
+        return strip_prompt_symbol(&line[idx..]).map(|(_, mode)| (&line[..idx], mode));
     }
 
     None
 }
 
 fn strip_prompt_marker<'a>(line: &'a str, indent: &str) -> Option<(&'a str, PromptMode)> {
-    let line = line.strip_prefix(indent)?;
+    strip_prompt_symbol(line.strip_prefix(indent)?)
+}
 
-    if let Some(rest) = line.strip_prefix("❯ ") {
-        Some((rest, PromptMode::Unwrap))
-    } else if let Some(rest) = line.strip_prefix("› ") {
-        Some((rest, PromptMode::Unwrap))
+fn strip_prompt_symbol(line: &str) -> Option<(&str, PromptMode)> {
+    let (rest, mode) = if let Some(rest) = line.strip_prefix(['❯', '›']) {
+        (rest, PromptMode::Unwrap)
+    } else if let Some(rest) = line.strip_prefix('>') {
+        (rest, PromptMode::PreserveLines)
     } else {
-        line.strip_prefix("> ")
-            .map(|rest| (rest, PromptMode::PreserveLines))
+        return None;
+    };
+
+    strip_inline_spaces(rest, 1).map(|rest| (rest, mode))
+}
+
+fn strip_inline_spaces(line: &str, count: usize) -> Option<&str> {
+    let mut chars = line.chars();
+    for _ in 0..count {
+        if !is_inline_space(chars.next()?) {
+            return None;
+        }
     }
+    Some(chars.as_str())
+}
+
+// Terminal UIs (e.g. Codex CLI) may render the prompt and continuation
+// indentation with non-breaking or other Unicode spaces that survive
+// copy-and-paste, so prompt detection must not assume ASCII spaces.
+fn is_inline_space(ch: char) -> bool {
+    matches!(
+        ch,
+        ' ' | '\t' | '\u{00A0}' | '\u{1680}' | '\u{2000}'
+            ..='\u{200A}' | '\u{202F}' | '\u{205F}' | '\u{3000}'
+    )
 }
 
 fn unwrap_prompt_lines(input: &str) -> String {
@@ -139,7 +157,7 @@ fn unwrap_prompt_lines(input: &str) -> String {
 
     for (index, (body, newline)) in lines.iter().enumerate() {
         let body = if previous_line_was_joined {
-            body.trim_start_matches([' ', '\t'])
+            body.trim_start_matches(is_inline_space)
         } else {
             body
         };
@@ -149,6 +167,7 @@ fn unwrap_prompt_lines(input: &str) -> String {
         let next_body = lines.get(index + 1).map(|(body, _)| *body);
         let should_join = !newline.is_empty()
             && !is_blank_line(body)
+            && !ends_with_sentence_terminator(body)
             && next_body.is_some_and(|next| !is_blank_line(next));
 
         if should_join {
@@ -164,9 +183,28 @@ fn unwrap_prompt_lines(input: &str) -> String {
     output
 }
 
+// Terminal wrapping breaks lines mid-sentence at the window width, so a line
+// that ends exactly at sentence-ending punctuation is treated as a real line
+// break the user typed, not a visual wrap.
+fn ends_with_sentence_terminator(line: &str) -> bool {
+    let last = line.chars().rev().find(|ch| !is_closing_wrapper(*ch));
+
+    matches!(
+        last,
+        Some('。' | '．' | '！' | '？' | '…' | '.' | '!' | '?')
+    )
+}
+
+fn is_closing_wrapper(ch: char) -> bool {
+    matches!(
+        ch,
+        '」' | '』' | '）' | '】' | '〉' | '》' | ')' | ']' | '}' | '"' | '\'' | '”' | '’'
+    )
+}
+
 fn join_separator(left: &str, right: &str) -> &'static str {
     let left = left.chars().next_back();
-    let right = right.chars().find(|ch| !matches!(ch, ' ' | '\t'));
+    let right = right.chars().find(|ch| !is_inline_space(*ch));
 
     if matches!((left, right), (Some(left), Some(right)) if is_cjk(left) && is_cjk(right)) {
         ""
@@ -219,7 +257,8 @@ fn remove_prefix_whitespace(line: &str, width: usize) -> &str {
 }
 
 fn is_blank_line(line: &str) -> bool {
-    line.trim_matches([' ', '\t', '\r']).is_empty()
+    line.trim_matches(|ch| is_inline_space(ch) || ch == '\r')
+        .is_empty()
 }
 
 fn count_prefix_whitespace(line: &str) -> usize {
@@ -695,6 +734,59 @@ mod tests {
     fn joins_latin_and_mixed_lines_with_one_space() {
         assert_eq!(dedent_text("› alpha\n  beta\n"), "alpha beta\n");
         assert_eq!(dedent_text("› Mermaid\n  技能\n"), "Mermaid 技能\n");
+    }
+
+    #[test]
+    fn strips_prompt_when_marker_and_indent_use_non_breaking_spaces() {
+        assert_eq!(
+            dedent_text(
+                "❯\u{00A0}我需要在「系統管理」頁面加入 Tab 分類，方便切換與操作。\n\u{00A0}\u{00A0}系統管理打開後，網址列應該要有 deep linking 能力。\n"
+            ),
+            "我需要在「系統管理」頁面加入 Tab 分類，方便切換與操作。\n系統管理打開後，網址列應該要有 deep linking 能力。\n"
+        );
+    }
+
+    #[test]
+    fn joins_wrapped_lines_when_prompt_space_is_non_breaking() {
+        assert_eq!(dedent_text("›\u{00A0}alpha\n  beta\n"), "alpha beta\n");
+        assert_eq!(
+            dedent_text("›\u{3000}中文，\n\u{00A0}\u{00A0}測試\n"),
+            "中文，測試\n"
+        );
+    }
+
+    #[test]
+    fn strips_blockquote_prefix_with_non_breaking_space() {
+        assert_eq!(
+            dedent_text(">\u{00A0}Hello 123\n\u{00A0}\u{00A0}I'm Will.\n"),
+            "Hello 123\nI'm Will.\n"
+        );
+    }
+
+    #[test]
+    fn preserves_line_breaks_after_sentence_ending_punctuation() {
+        assert_eq!(
+            dedent_text(
+                "❯ 我需要在「系統管理」頁面加入 Tab 分類，將不同的管理功能，區分成不同的群組，方便切換與操作。\n  系統管理打開後，網址列應該要有 deep linking 能力。切換到不同 Tab 應該也要有 deep linking 能力。\n"
+            ),
+            "我需要在「系統管理」頁面加入 Tab 分類，將不同的管理功能，區分成不同的群組，方便切換與操作。\n系統管理打開後，網址列應該要有 deep linking 能力。切換到不同 Tab 應該也要有 deep linking 能力。\n"
+        );
+    }
+
+    #[test]
+    fn preserves_line_breaks_after_latin_sentence_ending_punctuation() {
+        assert_eq!(
+            dedent_text("❯ First sentence.\n  Second line\n"),
+            "First sentence.\nSecond line\n"
+        );
+    }
+
+    #[test]
+    fn preserves_line_breaks_when_terminator_is_wrapped_in_closing_punctuation() {
+        assert_eq!(
+            dedent_text("› 第一行（完成。）\n  第二行\n"),
+            "第一行（完成。）\n第二行\n"
+        );
     }
 
     #[test]
