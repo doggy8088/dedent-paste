@@ -17,14 +17,9 @@ dedentPaste := A_Home . "\.local\bin\dedent-paste.exe"
         return
     }
 
+    ; 執行失敗時 dedent-paste 會自行顯示錯誤對話方塊，這裡不再重複提示。
     quotedPath := Chr(34) . dedentPaste . Chr(34)
     RunWait, %quotedPath%,, Hide UseErrorLevel
     if (ErrorLevel = "ERROR")
-    {
         MsgBox, 16, dedent-paste, 啟動 dedent-paste 失敗。
-        return
-    }
-
-    if (ErrorLevel != 0)
-        MsgBox, 16, dedent-paste, dedent-paste 執行失敗，exit code: %ErrorLevel%
 return

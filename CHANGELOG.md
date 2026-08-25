@@ -4,6 +4,11 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+- 新增 Gemini 圖片轉文字功能：剪貼簿沒有文字但有圖片時，自動以 Gemini（預設 `gemini-3.7-flash`）辨識圖片文字為格式化文字，或在圖片沒有文字時產生圖片描述（預設 `zh-TW`），並貼上結果。
+- 新增 `DEDENT_PASTE_GEMINI_API_KEY`（備援 `GEMINI_API_KEY`）、`DEDENT_PASTE_GEMINI_MODEL`、`DEDENT_PASTE_LANG`（備援 `LANG`）、`DEDENT_PASTE_GEMINI_SYSTEM_PROMPT`、`DEDENT_PASTE_GEMINI_SYSTEM_PROMPT_FILE`、`DEDENT_PASTE_GEMINI_TIMEOUT_SECS` 與 `DEDENT_PASTE_LOG_FILE` 環境變數。
+- 新增記錄檔功能：未設定 API 金鑰或剪貼簿沒有內容時靜默結束並只寫入記錄檔；其他圖片轉文字錯誤會顯示系統通知（macOS 通知中心、Windows 錯誤對話方塊）且不更動剪貼簿。
+- 更新 AutoHotkey 範例腳本，移除非零 exit code 的泛用錯誤視窗，避免與程式自身的錯誤對話方塊重複。
+- 在 README 與 GitHub Pages 首頁加入 Karabiner-Elements 與 AutoHotkey 的環境變數設定說明（env 檔、`setx`、`EnvSet`），並更新首頁對圖片轉文字功能的描述。
 - 強化 `bump-and-release` 的變更紀錄流程，在發佈前依 Git 標籤與提交差異回補缺漏 Release notes，並拒絕空白或占位內容。
 - 強化 `bump-and-release` 的 npm 發佈回退機制：未偵測到 Release 事件觸發的工作流程時，僅手動補觸發一次。
 - 改善 `workflow_dispatch` 錯誤判斷，並避免 `--publish-npm` 在同一流程中重複觸發 npm 發佈。

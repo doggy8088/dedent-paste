@@ -806,6 +806,7 @@
           <a href="#install">Install</a>
           <a href="#platforms">Platforms</a>
           <a href="#features">Features</a>
+          <a href="#gemini">Image to text</a>
           <a href="https://github.com/doggy8088/dedent-paste">GitHub</a>
           <a href="https://github.com/doggy8088/dedent-paste/releases">Releases</a>
         </div>
@@ -852,7 +853,7 @@
           <div class="trust-strip" aria-label="Project facts">
             <span><strong>Installer pair</strong>Shell for macOS, PowerShell for Windows</span>
             <span><strong>Hotkey glue</strong>Karabiner-Elements or AutoHotkey</span>
-            <span><strong>Local clipboard</strong>No server, no upload, no tracking</span>
+            <span><strong>Local clipboard</strong>Text never leaves your machine; images call Gemini only if you opt in with an API key</span>
           </div>
         </div>
 
@@ -944,6 +945,46 @@
         </article>
       </section>
 
+      <section id="gemini" class="section-intro" aria-labelledby="gemini-title">
+        <h2 id="gemini-title">Copy an image. Paste the text.</h2>
+        <p>
+          Optional: when the clipboard holds an image instead of text, dedent-paste can send it to the Gemini API,
+          transcribe it into Markdown-formatted text (or describe it, in Traditional Chinese by default), and paste
+          the result. Without an API key the feature stays completely silent.
+        </p>
+      </section>
+
+      <section class="features" aria-label="Gemini environment variable setup">
+        <article class="feature">
+          <span class="feature-index">Enable</span>
+          <strong>Set an API key</strong>
+          <p>
+            Get a key from Google AI Studio and expose it as <code>GEMINI_API_KEY</code> (or the tool-specific
+            <code>DEDENT_PASTE_GEMINI_API_KEY</code>). Pick the output language with <code>DEDENT_PASTE_LANG</code>,
+            e.g. <code>zh-TW</code>. Exporting in your terminal is not enough — the hotkey tool must see the variables.
+          </p>
+        </article>
+        <article class="feature">
+          <span class="feature-index">macOS</span>
+          <strong>Karabiner: source an env file</strong>
+          <p>
+            Karabiner never loads your shell profile. Put <code>export GEMINI_API_KEY=...</code> in
+            <code>~/.config/dedent-paste/env</code> (then <code>chmod 600</code> it) and change the rule's
+            shell_command to
+            <code>. "$HOME/.config/dedent-paste/env" 2&gt;/dev/null; exec $HOME/.local/bin/dedent-paste</code>.
+          </p>
+        </article>
+        <article class="feature">
+          <span class="feature-index">Windows</span>
+          <strong>AutoHotkey: user variables</strong>
+          <p>
+            AutoHotkey inherits user environment variables: run <code>setx GEMINI_API_KEY "your-key"</code>, then
+            restart the .ahk script. Prefer to keep it scoped? Call <code>EnvSet</code> inside the script before
+            <code>RunWait</code>. Full details in the <a href="https://github.com/doggy8088/dedent-paste/blob/main/README.md">README</a>.
+          </p>
+        </article>
+      </section>
+
       <div class="use-cases" aria-label="Common paste targets">
         <span>code blocks</span>
         <span>Markdown</span>
@@ -951,6 +992,7 @@
         <span>terminal snippets</span>
         <span>issue comments</span>
         <span>documentation</span>
+        <span>screenshots → text</span>
       </div>
 
       <footer class="footer">

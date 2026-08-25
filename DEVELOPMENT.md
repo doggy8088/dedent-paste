@@ -109,6 +109,16 @@ https://github.com/doggy8088/dedent-paste/releases/latest/download/dedent-paste-
 - Windows uses native clipboard APIs and simulated `Ctrl+V`, and the hotkey integration in `README.md` uses AutoHotkey.
 - Linux artifacts are still published by cargo-dist for consistency, but runtime clipboard/paste integration is not documented.
 
+## Dependencies
+
+The Gemini image-to-text feature adds three runtime crates:
+
+- `ureq` (blocking HTTP; rustls + bundled webpki roots — no OpenSSL, so it cross-compiles cleanly for all cargo-dist targets)
+- `serde_json` (request/response JSON with correct escaping of user-provided prompts)
+- `base64` (inline image payload encoding)
+
+Windows-only, `image` (with only the `bmp` and `png` features) converts CF_DIB clipboard bitmaps to PNG. Clipboard image reading on macOS shells out to `osascript` and needs no extra crate. Keep new dependencies minimal and pure-Rust so the five cargo-dist release targets keep building.
+
 ## GitHub Pages
 
 The GitHub Pages site is in:

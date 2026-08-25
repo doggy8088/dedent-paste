@@ -12,6 +12,8 @@
 
 Codex CLI 的單一換行通常是終端機寬度造成的視覺折行。`dedent-paste` 會依文字邊界自動接合：CJK 文字直接相接，拉丁文字或中拉丁文字交界補上一個空白。兩個以上連續的換行則視為真正的段落分隔並予以保留。未符合 Codex CLI 提示格式的文字不會套用這項段落展開處理。
 
+另外，如果剪貼簿**沒有文字但有圖片**（例如螢幕截圖），且已設定 Gemini API 金鑰，`dedent-paste` 會自動把圖片交給 Gemini 辨識成格式化文字後貼上。詳見〈[圖片轉文字（Gemini）](#圖片轉文字gemini)〉。
+
 建議搭配方式：
 
 - macOS：搭配 Karabiner-Elements，使用 `Option+V`
@@ -138,14 +140,12 @@ dedentPaste := A_Home "\.local\bin\dedent-paste.exe"
         return
     }
 
-    try exitCode := RunWait Format("""{1}""", dedentPaste),, "Hide"
+    ; 執行失敗時 dedent-paste 會自行顯示錯誤對話方塊，這裡不再重複提示。
+    try RunWait Format("""{1}""", dedentPaste),, "Hide"
     catch Error as err {
         MsgBox "啟動 dedent-paste 失敗。`n`n" err.Message, "dedent-paste", "Iconx"
         return
     }
-
-    if (exitCode != 0)
-        MsgBox "dedent-paste 執行失敗，exit code: " exitCode, "dedent-paste", "Iconx"
 }
 ```
 
@@ -171,16 +171,11 @@ dedentPaste := A_Home . "\.local\bin\dedent-paste.exe"
         return
     }
 
+    ; 執行失敗時 dedent-paste 會自行顯示錯誤對話方塊，這裡不再重複提示。
     quotedPath := Chr(34) . dedentPaste . Chr(34)
     RunWait, %quotedPath%,, Hide UseErrorLevel
     if (ErrorLevel = "ERROR")
-    {
         MsgBox, 16, dedent-paste, 啟動 dedent-paste 失敗。
-        return
-    }
-
-    if (ErrorLevel != 0)
-        MsgBox, 16, dedent-paste, dedent-paste 執行失敗，exit code: %ErrorLevel%
 return
 ```
 
@@ -194,6 +189,106 @@ return
 4. `dedent-paste` 會把剪貼簿內容轉成純文字、移除共同縮排後立即貼上。
 
 如果你仍想保留 Windows 內建的 `Win+V` 剪貼簿歷程記錄，可以把 AutoHotkey 腳本裡的 `#v` 改成其他快捷鍵，例如 `!v`（`Alt+V`）。
+
+## 圖片轉文字（Gemini）
+
+當剪貼簿**沒有文字但有圖片**時，`dedent-paste` 會把圖片送到 [Gemini API](https://ai.google.dev/) 辨識：
+
+- 圖片中有文字：忠實轉錄成格式化文字（以 Markdown 保留標題、清單、表格與程式碼區塊結構）。
+- 圖片中沒有文字：改為產生圖片描述（預設使用繁體中文 `zh-TW`）。
+
+辨識結果會直接貼上。剪貼簿有文字時行為完全不變，仍走原本的縮排整理流程。
+
+> 隱私提醒：啟用此功能後，剪貼簿中的圖片會上傳至 Google Gemini API。
+
+### 啟用方式
+
+只需要設定 API 金鑰（可在 [Google AI Studio](https://aistudio.google.com/apikey) 取得）：
+
+```sh
+export GEMINI_API_KEY="你的金鑰"
+```
+
+**沒有設定金鑰時，此功能完全不會啟動**：按下快捷鍵不會有任何視窗或通知，只會在記錄檔寫入一行訊息。
+
+> 注意：透過 Karabiner-Elements 或 AutoHotkey 觸發時，環境變數必須讓該程式看得到。在終端機 `export` 或寫進 `.zshrc` 是不夠的，請參考下一節。
+
+### 在 Karabiner-Elements / AutoHotkey 中設定環境變數
+
+快捷鍵工具不會載入你的 shell 設定檔（`.zshrc`、`.bash_profile` 等），所以在終端機 `export` 的環境變數對它們是看不見的。
+
+#### macOS（Karabiner-Elements）
+
+建議建立專用的環境變數檔 `~/.config/dedent-paste/env`：
+
+```sh
+mkdir -p ~/.config/dedent-paste
+cat > ~/.config/dedent-paste/env <<'EOF'
+export GEMINI_API_KEY="你的金鑰"
+export DEDENT_PASTE_LANG="zh-TW"
+EOF
+chmod 600 ~/.config/dedent-paste/env
+```
+
+再把 Karabiner 規則（`~/.config/karabiner/karabiner.json`，修改前建議先備份）中的 `shell_command` 改成先載入這個檔案：
+
+```json
+{
+  "shell_command": ". \"$HOME/.config/dedent-paste/env\" 2>/dev/null; exec $HOME/.local/bin/dedent-paste"
+}
+```
+
+Karabiner 會自動套用設定變更，不需要重新啟動。`2>/dev/null` 讓檔案不存在時快捷鍵仍可正常運作（只是圖片轉文字功能不會啟用）。
+
+另一個做法是 `launchctl setenv GEMINI_API_KEY "你的金鑰"`，但重開機後會失效（需搭配 LaunchAgent），而且金鑰會暴露給整個 GUI session 的所有程式，因此建議使用上面的環境變數檔。
+
+#### Windows（AutoHotkey）
+
+AutoHotkey 會繼承「使用者環境變數」。用 `setx` 或「系統內容 > 環境變數」設定後，**重新啟動 AutoHotkey 腳本**即可生效：
+
+```powershell
+setx GEMINI_API_KEY "你的金鑰"
+setx DEDENT_PASTE_LANG "zh-TW"
+```
+
+`setx` 只影響之後啟動的程式，已經在執行的 AutoHotkey 腳本要重啟才會看到新值。
+
+如果不想設定全域環境變數，也可以在 AutoHotkey 腳本裡、執行 `RunWait` 之前設定，讓變數只作用於 dedent-paste（v2 語法）：
+
+```ahk
+EnvSet "GEMINI_API_KEY", "你的金鑰"
+EnvSet "DEDENT_PASTE_LANG", "zh-TW"
+```
+
+> 提醒：金鑰寫進腳本或設定檔後，請將檔案權限設為僅自己可讀（macOS 上 `chmod 600`），並避免分享或提交進版本控制。
+
+### 環境變數
+
+| 環境變數 | 用途 | 預設值 / 備援 |
+|---|---|---|
+| `DEDENT_PASTE_GEMINI_API_KEY` | 本工具專用金鑰（優先） | 未設定時改用 `GEMINI_API_KEY` |
+| `GEMINI_API_KEY` | 共用金鑰 | 兩者皆未設定時功能停用 |
+| `DEDENT_PASTE_GEMINI_MODEL` | 模型 ID | `gemini-3.7-flash` |
+| `DEDENT_PASTE_LANG` | 輸出語言（直接使用，如 `en-US`、`ja`） | 未設定時由 `LANG` 推導（如 `zh_TW.UTF-8` → `zh-TW`）；再無則 `zh-TW` |
+| `DEDENT_PASTE_GEMINI_SYSTEM_PROMPT` | 自訂 system prompt（直接內容，優先於檔案） | 內建 prompt |
+| `DEDENT_PASTE_GEMINI_SYSTEM_PROMPT_FILE` | 自訂 system prompt 檔案路徑 | — |
+| `DEDENT_PASTE_GEMINI_TIMEOUT_SECS` | API 逾時秒數 | `60` |
+| `DEDENT_PASTE_LOG_FILE` | 記錄檔路徑 | macOS：`~/Library/Logs/dedent-paste.log`；Windows：`%LOCALAPPDATA%\dedent-paste\dedent-paste.log` |
+
+自訂 system prompt 中可以使用 `{language}` 佔位符，執行時會代換成輸出語言。
+
+### 錯誤處理
+
+- 未設定金鑰、或剪貼簿既無文字也無圖片：**靜默結束**，只寫入記錄檔。
+- 已設定金鑰但呼叫失敗（網路錯誤、API 錯誤、prompt 檔案無法讀取）：顯示系統通知（macOS 通知中心；Windows 錯誤對話方塊），剪貼簿內容不會被更動，並寫入記錄檔。
+- 圖片過大（要求超過 20 MB 上限）會直接回報錯誤，不會送出。
+
+> Windows 使用者請更新 AutoHotkey 腳本至最新範例：舊版腳本會在非零 exit code 時再跳出一個泛用錯誤視窗，新版已移除以避免重複提示。
+
+### 已知限制
+
+- 在 Finder 複製 HEIC「檔案」時，剪貼簿放的是檔案路徑而非圖片內容，會視為沒有圖片。請改用預覽程式開啟後複製，或直接使用螢幕截圖。
+- Gemini 呼叫期間（數秒至數十秒）沒有進度提示，完成後才會貼上。
 
 ## 相關連結
 
