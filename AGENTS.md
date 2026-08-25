@@ -20,7 +20,7 @@ Runtime support:
 - `DEVELOPMENT.md`: build, test, installer, CI/CD, and release notes.
 - `install.sh`: macOS installer and Karabiner configuration updater.
 - `examples/`: Karabiner and AutoHotkey integration examples.
-- `docs/`: GitHub Pages static site.
+- `public/`: GitHub Pages static site.
 - `.github/workflows/`: CI, Pages, and cargo-dist release workflows.
 
 ## Development commands

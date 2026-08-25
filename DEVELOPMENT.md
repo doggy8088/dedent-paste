@@ -124,7 +124,7 @@ Windows-only, `image` (with only the `bmp` and `png` features) converts CF_DIB c
 The GitHub Pages site is in:
 
 ```text
-docs/
+public/
 ```
 
-The `GitHub Pages` workflow deploys the static site on every push to `main`.
+The `GitHub Pages` workflow deploys the static site on pushes to `main` that touch `public/**`. Use the workflow's `Run workflow` button (`workflow_dispatch`) to redeploy without a content change.
