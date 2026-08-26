@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "skills": {
+    "gemini-api-dev": {
+      "source": "google-gemini/gemini-skills",
+      "sourceType": "github",
+      "skillPath": "skills/gemini-api-dev/SKILL.md",
+      "computedHash": "6e89214f7e6fe91f43160c040d803756f5b89cda743b207bf465b2792ad7850c"
+    },
+    "gemini-interactions-api": {
+      "source": "google-gemini/gemini-skills",
+      "sourceType": "github",
+      "skillPath": "skills/gemini-interactions-api/SKILL.md",
+      "computedHash": "615b467b0ea98d4ac3f625ada83255244a3a0c7676adf63f8fa69313e5ab021b"
+    },
+    "gemini-live-api-dev": {
+      "source": "google-gemini/gemini-skills",
+      "sourceType": "github",
+      "skillPath": "skills/gemini-live-api-dev/SKILL.md",
+      "computedHash": "d4d52c9a639bd79fe5eeef0722a9d4d6ed256b99172375b60e96920c8b111836"
+    },
+    "gemini-omni-flash-api": {
+      "source": "google-gemini/gemini-skills",
+      "sourceType": "github",
+      "skillPath": "skills/gemini-omni-flash-api/SKILL.md",
+      "computedHash": "765da8e118722c2278635b98aa2ac9319361b431dc2cfe4704b72624e4899c8a"
+    },
+    "remotion-best-practices": {
+      "source": "remotion-dev/skills",
+      "sourceType": "github",
+      "skillPath": "skills/remotion-best-practices/SKILL.md",
+      "computedHash": "83df8d5bd9123b0bad380e2b01bbaec2f69ce4ece64e6b8d6127897acc22df12"
+    }
+  }
+}
