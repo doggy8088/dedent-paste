@@ -11,9 +11,82 @@ use dedent_paste::{
 };
 
 mod gemini;
+mod setup;
+
+const VERSION: &str = env!("CARGO_PKG_VERSION");
+
+const HELP: &str = "\
+dedent-paste {version}
+Paste clipboard text with common indentation removed.
+
+Usage: dedent-paste [OPTION]
+
+With no options, dedent-paste reads the clipboard as plain text, removes the
+common indentation, writes the result back, and pastes it. This is what the
+Option+V (macOS, Karabiner-Elements) or Win+V (Windows, AutoHotkey) hotkey runs.
+
+Options:
+  -i, --install      Register the Option+V rule in Karabiner-Elements (macOS).
+                     The rule points at this executable. Existing dedent-paste
+                     rules are replaced and karabiner.json is backed up first.
+  -u, --uninstall    Remove every dedent-paste rule from Karabiner-Elements (macOS)
+                     and delete the imported complex-modification asset.
+  -v, --version      Print the version and exit.
+  -h, --help         Print this help and exit.
+
+Environment variables (Gemini image-to-text) are documented at:
+  https://github.com/doggy8088/dedent-paste#readme
+";
+
+enum Command {
+    Paste,
+    Help,
+    Version,
+    Install,
+    Uninstall,
+}
+
+fn parse_args(args: impl Iterator<Item = String>) -> Result<Command, String> {
+    let args: Vec<String> = args.collect();
+
+    match args.as_slice() {
+        [] => Ok(Command::Paste),
+        [flag] => match flag.as_str() {
+            "-h" | "--help" => Ok(Command::Help),
+            "-v" | "--version" => Ok(Command::Version),
+            "-i" | "--install" => Ok(Command::Install),
+            "-u" | "--uninstall" => Ok(Command::Uninstall),
+            other => Err(format!("unknown option '{other}'")),
+        },
+        _ => Err("expected at most one option".to_string()),
+    }
+}
 
 fn main() {
-    if let Err(error) = run() {
+    let command = match parse_args(std::env::args().skip(1)) {
+        Ok(command) => command,
+        Err(message) => {
+            eprintln!("dedent-paste: {message}");
+            eprintln!("Run 'dedent-paste --help' for usage.");
+            std::process::exit(2);
+        }
+    };
+
+    let result = match command {
+        Command::Paste => run(),
+        Command::Help => {
+            print!("{}", HELP.replace("{version}", VERSION));
+            Ok(())
+        }
+        Command::Version => {
+            println!("dedent-paste {VERSION}");
+            Ok(())
+        }
+        Command::Install => setup::install(),
+        Command::Uninstall => setup::uninstall(),
+    };
+
+    if let Err(error) = result {
         eprintln!("dedent-paste: {error}");
         std::process::exit(1);
     }

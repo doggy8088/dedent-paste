@@ -35,7 +35,13 @@ brew trust doggy8088/dedent-paste
 brew install dedent-paste
 ```
 
-Homebrew 6 之後對第三方 tap 需要先執行一次 `brew trust`，較舊版本可略過該行。Homebrew 只會安裝 `dedent-paste` 執行檔（Apple Silicon 位於 `/opt/homebrew/bin/dedent-paste`，Intel 位於 `/usr/local/bin/dedent-paste`），Karabiner-Elements 的 `Option+V` 規則請參考下方〈[macOS](#macos)〉章節，並把規則中的 `shell_command` 路徑改成 Homebrew 的安裝路徑。
+Homebrew 6 之後對第三方 tap 需要先執行一次 `brew trust`，較舊版本可略過該行。Homebrew 只會安裝 `dedent-paste` 執行檔，安裝完成後會提示你還需要設定 Karabiner-Elements。請接著執行：
+
+```sh
+dedent-paste --install
+```
+
+這會把 `Option+V` 規則寫進目前啟用中的 Karabiner-Elements profile，規則會直接指向 Homebrew 安裝的執行檔路徑。詳見〈[命令列參數](#命令列參數)〉。
 
 > 注意：Windows 預設的 `Win+V` 是「剪貼簿歷程記錄」。如果你使用下面的 AutoHotkey 腳本，這個預設快捷鍵會被覆蓋。
 
@@ -43,7 +49,7 @@ Homebrew 6 之後對第三方 tap 需要先執行一次 `brew trust`，較舊版
 
 ### 安裝
 
-需求：macOS、Karabiner-Elements、`curl` 與 Python 3。
+需求：macOS、Karabiner-Elements 與 `curl`。
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/doggy8088/dedent-paste/main/install.sh | bash
@@ -57,11 +63,12 @@ $HOME/.local/bin/dedent-paste
 
 ### 設定
 
-- 安裝程式會自動把 `Option+V` 規則加入目前啟用中的 Karabiner-Elements profile。
-- 修改前會先備份 Karabiner 設定。
+- 安裝程式在放好執行檔後會執行 `dedent-paste --install`，自動把 `Option+V` 規則加入目前啟用中的 Karabiner-Elements profile。
+- 修改前會先備份 Karabiner 設定（`~/.config/karabiner/karabiner.json.bak-<時間戳記>`）。
 - Karabiner 規則會直接指向 `$HOME/.local/bin/dedent-paste`，所以即使你的 shell `PATH` 尚未包含 `$HOME/.local/bin`，快捷鍵仍可正常使用。
 - 如果你想在 Terminal 直接輸入 `dedent-paste`，再自行把 `$HOME/.local/bin` 加入 `PATH`。
 - 如果你想手動查看或匯入規則，可以參考 [`examples/macos/paste-dedent-plain-text.json`](examples/macos/paste-dedent-plain-text.json)。
+- 想移除快捷鍵時執行 `dedent-paste --uninstall`。
 
 Karabiner-Elements 可能需要 macOS「輔助使用」權限，才能透過 System Events 觸發貼上動作。
 
@@ -80,6 +87,26 @@ Karabiner-Elements 可能需要 macOS「輔助使用」權限，才能透過 Sys
 ```text
 Option+V
 ```
+
+### 命令列參數
+
+不帶參數執行 `dedent-paste` 就是快捷鍵觸發的貼上流程。另外提供下列參數：
+
+| 參數 | 說明 |
+|---|---|
+| `-h`, `--help` | 顯示參數說明 |
+| `-v`, `--version` | 顯示目前版本號 |
+| `-i`, `--install` | 初始化 Karabiner-Elements 設定（僅 macOS） |
+| `-u`, `--uninstall` | 移除 Karabiner-Elements 中的 dedent-paste 規則（僅 macOS） |
+
+`--install` 的行為：
+
+1. 以 [`examples/macos/paste-dedent-plain-text.json`](examples/macos/paste-dedent-plain-text.json) 為範本，把規則中的執行路徑改成**目前執行的這個 `dedent-paste` 的實際安裝路徑**（例如 Homebrew 的 `/opt/homebrew/bin/dedent-paste`、npm 的安裝目錄或 `$HOME/.local/bin/dedent-paste`）。若路徑位於 Homebrew 的 `Cellar/<版本>/` 目錄，會改寫成不含版本號的 `opt/dedent-paste/bin/dedent-paste`，以免 `brew upgrade` 之後失效。
+2. 把範本寫到 `~/.config/karabiner/assets/complex_modifications/paste-dedent-plain-text.json`，方便在 Karabiner-Elements 介面中手動匯入。
+3. 備份 `~/.config/karabiner/karabiner.json`，再把規則寫進目前啟用中的 profile。判斷「是否已有 dedent-paste 規則」的依據是規則裡 `shell_command` 是否包含 `dedent-paste`，而不是規則名稱；既有規則會原地取代，多餘的重複規則會一併移除。
+4. 如果找得到 `karabiner_cli`，會順便驗證產生的規則。
+
+`--uninstall` 會從**所有** profile 移除 `shell_command` 包含 `dedent-paste` 的規則（同樣會先備份），並刪除上述的 asset 檔案。
 
 ## Windows
 

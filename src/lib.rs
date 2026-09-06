@@ -5,6 +5,8 @@ use std::time::Duration;
 
 use base64::Engine as _;
 
+pub mod karabiner;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DedentError {
     InvalidUtf8,
