@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="dedent-paste removes common indentation from your clipboard and pastes clean plain text with Option+V on macOS or Win+V on Windows.">
-    <meta name="keywords" content="dedent paste, plain text paste, Karabiner-Elements, AutoHotkey, macOS clipboard, Windows clipboard, Option+V, Win+V, clipboard tool, developer productivity">
+    <meta name="keywords" content="dedent paste, plain text paste, Homebrew, brew install, Karabiner-Elements, AutoHotkey, macOS clipboard, Windows clipboard, Option+V, Win+V, clipboard tool, developer productivity">
     <meta name="author" content="Will 保哥">
     <meta name="robots" content="index, follow">
     <meta name="theme-color" content="#07100d">
@@ -804,6 +804,7 @@
         </a>
         <div class="nav-links">
           <a href="#install">Install</a>
+          <a href="#homebrew">Homebrew</a>
           <a href="#platforms">Platforms</a>
           <a href="#features">Features</a>
           <a href="#gemini">Image to text</a>
@@ -824,7 +825,14 @@
           <div class="install-card" aria-label="Install commands">
             <div id="install" class="install-grid">
               <div class="command-stack">
-                <span class="command-label">macOS installer</span>
+                <span class="command-label">macOS via Homebrew</span>
+                <div class="command">
+                  <code id="install-command-homebrew">brew tap doggy8088/dedent-paste &amp;&amp; brew trust doggy8088/dedent-paste &amp;&amp; brew install dedent-paste &amp;&amp; dedent-paste --install</code>
+                  <button class="copy" type="button" data-copy-target="install-command-homebrew">Copy</button>
+                </div>
+              </div>
+              <div class="command-stack">
+                <span class="command-label">macOS shell installer</span>
                 <div class="command">
                   <code id="install-command-macos">curl -fsSL https://raw.githubusercontent.com/doggy8088/dedent-paste/main/install.sh | bash</code>
                   <button class="copy" type="button" data-copy-target="install-command-macos">Copy</button>
@@ -839,8 +847,10 @@
               </div>
             </div>
             <p class="install-note">
-              Releases include both shell and PowerShell installers. For AutoHotkey, prefer the fixed path
-              <code>%USERPROFILE%\.local\bin\dedent-paste.exe</code>
+              Homebrew installs the binary only; <code>dedent-paste --install</code> adds the Option+V rule to
+              Karabiner-Elements. The shell installer does both in one go. Also on
+              <a href="https://www.npmjs.com/package/dedent-paste">npm</a> as <code>npm install -g dedent-paste</code>.
+              For AutoHotkey, prefer the fixed path <code>%USERPROFILE%\.local\bin\dedent-paste.exe</code>
               instead of waiting for PATH changes to refresh.
             </p>
           </div>
@@ -851,7 +861,7 @@
           </div>
 
           <div class="trust-strip" aria-label="Project facts">
-            <span><strong>Installer pair</strong>Shell for macOS, PowerShell for Windows</span>
+            <span><strong>Install your way</strong>Homebrew tap or shell installer on macOS, PowerShell on Windows, npm anywhere</span>
             <span><strong>Hotkey glue</strong>Karabiner-Elements or AutoHotkey</span>
             <span><strong>Local clipboard</strong>Text never leaves your machine; images call Gemini only if you opt in with an API key</span>
           </div>
@@ -893,6 +903,46 @@
         </div>
       </section>
 
+      <section id="homebrew" class="section-intro" aria-labelledby="homebrew-title">
+        <h2 id="homebrew-title">Homebrew on macOS, three commands.</h2>
+        <p>
+          The <a href="https://github.com/doggy8088/homebrew-dedent-paste">doggy8088/dedent-paste</a> tap is updated
+          automatically by every release. Homebrew 6 and later ask you to trust a third-party tap once before
+          installing from it; older versions can skip that step.
+        </p>
+      </section>
+
+      <section class="features" aria-label="Homebrew installation guide">
+        <article class="feature">
+          <span class="feature-index">1 / Install</span>
+          <strong>Tap, trust, install</strong>
+          <p>
+            <code>brew tap doggy8088/dedent-paste</code>, then <code>brew trust doggy8088/dedent-paste</code>, then
+            <code>brew install dedent-paste</code>. The binary lands in Homebrew's <code>bin</code>; nothing else on
+            your system is touched yet.
+          </p>
+        </article>
+        <article class="feature">
+          <span class="feature-index">2 / Hotkey</span>
+          <strong>Wire up Option+V</strong>
+          <p>
+            Install <a href="https://karabiner-elements.pqrs.org/">Karabiner-Elements</a> if you have not already
+            (<code>brew install --cask karabiner-elements</code>), then run <code>dedent-paste --install</code>. It
+            backs up <code>karabiner.json</code>, adds the Option+V rule pointing at the Homebrew binary, and
+            replaces any older dedent-paste rule it finds. Allow Karabiner-Elements under Privacy &amp; Security &gt; Accessibility.
+          </p>
+        </article>
+        <article class="feature">
+          <span class="feature-index">3 / Maintain</span>
+          <strong>Upgrade and remove</strong>
+          <p>
+            <code>brew upgrade dedent-paste</code> keeps the hotkey working because the rule points at a
+            version-independent path. To remove: <code>dedent-paste --uninstall</code> takes the rule out of every
+            Karabiner profile, then <code>brew uninstall dedent-paste</code>.
+          </p>
+        </article>
+      </section>
+
       <section id="platforms" class="section-intro" aria-labelledby="platforms-title">
         <h2 id="platforms-title">Two platforms, clear setup paths.</h2>
         <p>
@@ -905,7 +955,7 @@
         <article class="feature">
           <span class="feature-index">macOS</span>
           <strong>Karabiner + Option+V</strong>
-          <p>Run the shell installer, let it add the Karabiner rule, and allow Accessibility access if macOS asks.</p>
+          <p>Install with Homebrew or the shell installer, run <code>dedent-paste --install</code> to add the Karabiner rule (the shell installer does this for you), and allow Accessibility access if macOS asks.</p>
         </article>
         <article class="feature">
           <span class="feature-index">Windows</span>
@@ -935,8 +985,8 @@
         </article>
         <article class="feature">
           <span class="feature-index">02 / Release</span>
-          <strong>Easy release downloads</strong>
-          <p>GitHub Releases publish shell and PowerShell installers, platform archives, and checksums for common targets.</p>
+          <strong>Homebrew, npm, or direct download</strong>
+          <p>Every release updates the <a href="https://github.com/doggy8088/homebrew-dedent-paste">Homebrew tap</a> and the npm package, and publishes shell and PowerShell installers, platform archives, and checksums.</p>
         </article>
         <article class="feature">
           <span class="feature-index">03 / Clipboard</span>
@@ -969,9 +1019,9 @@
           <strong>Karabiner: source an env file</strong>
           <p>
             Karabiner never loads your shell profile. Put <code>export GEMINI_API_KEY=...</code> in
-            <code>~/.config/dedent-paste/env</code> (then <code>chmod 600</code> it) and change the rule's
-            shell_command to
-            <code>. "$HOME/.config/dedent-paste/env" 2&gt;/dev/null; exec $HOME/.local/bin/dedent-paste</code>.
+            <code>~/.config/dedent-paste/env</code> (then <code>chmod 600</code> it). The rule written by
+            <code>dedent-paste --install</code> already sources that file before running, so no manual edit of
+            <code>karabiner.json</code> is needed.
           </p>
         </article>
         <article class="feature">
@@ -1009,6 +1059,8 @@
           <a href="https://github.com/doggy8088/dedent-paste/blob/main/README.md">README</a>
           <a href="https://github.com/doggy8088/dedent-paste/blob/main/DEVELOPMENT.md">Development</a>
           <a href="https://github.com/doggy8088/dedent-paste/blob/main/CHANGELOG.md">Changelog</a>
+          <a href="https://github.com/doggy8088/homebrew-dedent-paste">Homebrew tap</a>
+          <a href="https://www.npmjs.com/package/dedent-paste">npm</a>
           <a href="https://github.com/doggy8088/dedent-paste">GitHub</a>
         </div>
         <div class="footer-meta">
