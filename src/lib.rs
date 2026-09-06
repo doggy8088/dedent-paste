@@ -115,9 +115,9 @@ fn strip_prompt_marker<'a>(line: &'a str, indent: &str) -> Option<(&'a str, Prom
 }
 
 fn strip_prompt_symbol(line: &str) -> Option<(&str, PromptMode)> {
-    let (rest, mode) = if let Some(rest) = line.strip_prefix(['❯', '›']) {
+    let (rest, mode) = if let Some(rest) = line.strip_prefix(['❯', '›', '•']) {
         (rest, PromptMode::Unwrap)
-    } else if let Some(rest) = line.strip_prefix('>') {
+    } else if let Some(rest) = line.strip_prefix(['>', '▸', '▾']) {
         (rest, PromptMode::PreserveLines)
     } else {
         return None;
@@ -191,7 +191,7 @@ fn ends_with_sentence_terminator(line: &str) -> bool {
 
     matches!(
         last,
-        Some('。' | '．' | '！' | '？' | '…' | '.' | '!' | '?')
+        Some('。' | '．' | '！' | '？' | '…' | '.' | '!' | '?' | '，' | ',')
     )
 }
 
@@ -727,7 +727,7 @@ mod tests {
 
     #[test]
     fn joins_cjk_lines_without_a_space() {
-        assert_eq!(dedent_text("› 中文，\n  測試\n"), "中文，測試\n");
+        assert_eq!(dedent_text("› 中文\n  測試\n"), "中文測試\n");
     }
 
     #[test]
@@ -750,8 +750,8 @@ mod tests {
     fn joins_wrapped_lines_when_prompt_space_is_non_breaking() {
         assert_eq!(dedent_text("›\u{00A0}alpha\n  beta\n"), "alpha beta\n");
         assert_eq!(
-            dedent_text("›\u{3000}中文，\n\u{00A0}\u{00A0}測試\n"),
-            "中文，測試\n"
+            dedent_text("›\u{3000}中文\n\u{00A0}\u{00A0}測試\n"),
+            "中文測試\n"
         );
     }
 
@@ -787,6 +787,30 @@ mod tests {
             dedent_text("› 第一行（完成。）\n  第二行\n"),
             "第一行（完成。）\n第二行\n"
         );
+    }
+
+    #[test]
+    fn preserves_line_breaks_after_comma() {
+        assert_eq!(dedent_text("› 第一行，\n  第二行\n"), "第一行，\n第二行\n");
+        assert_eq!(dedent_text("› first,\n  second\n"), "first,\nsecond\n");
+        assert_eq!(
+            dedent_text("› 第一行（備註，）\n  第二行\n"),
+            "第一行（備註，）\n第二行\n"
+        );
+    }
+
+    #[test]
+    fn strips_bullet_prompt_and_unwraps_user_example() {
+        let input = "• 我補充一下這次實驗的需求：在我目前的使用環境中，按 Shift 無法在唯音內切換中文與英數，所以我採取的方式是，在偵測到連續誤鍵後，保留並送出原始英數字元，\n  再直接切換至系統的 ABC 輸入來源，讓後續按鍵由 ABC 處理。\n\n  因此，我想達成的行為與留在唯音內持續中英混輸有所不同。不過，這與你提到的程式碼應如何整合是兩個層面的問題。即使最終行為是切換系統輸入來源，前面的判斷\n  與按鍵保留邏輯，仍應評估如何整合至 Typewriter_MixedAlphanumerical.swift；這部分我原先沒有充分考慮。\n\n  目前選用 ABC 是依照我自己的使用習慣。若要納入正式功能，切換目標也應考慮使用者實際使用的英文鍵盤配置，不宜固定假設為 ABC。";
+        let expected = "我補充一下這次實驗的需求：在我目前的使用環境中，按 Shift 無法在唯音內切換中文與英數，所以我採取的方式是，在偵測到連續誤鍵後，保留並送出原始英數字元，\n再直接切換至系統的 ABC 輸入來源，讓後續按鍵由 ABC 處理。\n\n因此，我想達成的行為與留在唯音內持續中英混輸有所不同。不過，這與你提到的程式碼應如何整合是兩個層面的問題。即使最終行為是切換系統輸入來源，前面的判斷與按鍵保留邏輯，仍應評估如何整合至 Typewriter_MixedAlphanumerical.swift；這部分我原先沒有充分考慮。\n\n目前選用 ABC 是依照我自己的使用習慣。若要納入正式功能，切換目標也應考慮使用者實際使用的英文鍵盤配置，不宜固定假設為 ABC。";
+        assert_eq!(dedent_text(input), expected);
+    }
+
+    #[test]
+    fn strips_triangle_prefix_and_preserves_lines_user_example() {
+        let input = "▸ Thought for 12s, 2.0k tokens\n  Evaluating Structured Output's Impact\n  結論先行：\n\n  │ 概念上「是的」，結構化輸出（Structured Output）確實是解決狀態判斷與解析問題最直覺的手段；但在目前以「GitHub Copilot\n  │ CLI」為核心的架構下，若全面改用純 JSON 輸出，會帶來新的技術瓶頸與風險。\n  │\n  │ 最推薦的實務做法其實是**「局部結構化（Micro-format / Key-Value）」**，既能享有結構化的高可靠度，又能避開 JSON 轉義與損毀的陷阱。\n\n  以下為您詳細分析優缺點、現實限制，以及最佳的落地架構：\n  ──────\n  ### 一、改用 Structured Output 的明顯好處";
+        let expected = "Thought for 12s, 2.0k tokens\nEvaluating Structured Output's Impact\n結論先行：\n\n│ 概念上「是的」，結構化輸出（Structured Output）確實是解決狀態判斷與解析問題最直覺的手段；但在目前以「GitHub Copilot\n│ CLI」為核心的架構下，若全面改用純 JSON 輸出，會帶來新的技術瓶頸與風險。\n│\n│ 最推薦的實務做法其實是**「局部結構化（Micro-format / Key-Value）」**，既能享有結構化的高可靠度，又能避開 JSON 轉義與損毀的陷阱。\n\n以下為您詳細分析優缺點、現實限制，以及最佳的落地架構：\n──────\n### 一、改用 Structured Output 的明顯好處";
+        assert_eq!(dedent_text(input), expected);
     }
 
     #[test]
