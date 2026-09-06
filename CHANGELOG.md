@@ -10,6 +10,7 @@ All notable changes to this project are documented in this file.
 - `install.sh` 改為呼叫 `dedent-paste --install` 完成 Karabiner-Elements 設定，不再需要 Python 3；並拒絕在不支援參數的舊版執行檔上執行。
 - Homebrew 安裝完成後顯示 caveats，提醒使用者執行 `dedent-paste --install` 設定 Karabiner-Elements（由 tap 儲存庫的 workflow 在 cargo-dist 更新 formula 後自動補上）。
 - 範例 `examples/macos/paste-dedent-plain-text.json` 的執行路徑改為 `$HOME/.local/bin/dedent-paste`。
+- 修正 `bump-and-release` 腳本在串流模式下的輸出處理，保留 stdout 與 stderr 以便正確辨識 workflow 錯誤訊息（例如缺少 `workflow_dispatch`）。
 
 ## 0.3.2
 

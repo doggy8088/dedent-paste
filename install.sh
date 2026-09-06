@@ -35,10 +35,10 @@ fi
 # karabiner_cli lint) is implemented by the binary itself so every install
 # channel (this script, Homebrew, npm) behaves the same way.
 #
-# Releases before 0.3.3 ignore command-line flags and would paste the clipboard
+# Releases before 0.4.0 ignore command-line flags and would paste the clipboard
 # instead, so refuse to continue with a binary that lacks the option parser.
 if ! grep -a -q -- 'Usage: dedent-paste' "$binary_path"; then
-  echo "error: $binary_path predates the --install flag (needs dedent-paste >= 0.3.3)." >&2
+  echo "error: $binary_path predates the --install flag (needs dedent-paste >= 0.4.0)." >&2
   echo "       Re-run this installer after a newer release is published." >&2
   exit 1
 fi
