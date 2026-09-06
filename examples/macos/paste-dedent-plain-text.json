@@ -7,7 +7,7 @@
             {
                 "from": {
                     "key_code": "v",
-                    "modifiers": { "mandatory": ["option"] }
+                    "modifiers": { "mandatory": ["left_option"] }
                 },
                 "to": [{ "shell_command": ". \"$HOME/.config/dedent-paste/env\" 2>/dev/null; exec $HOME/.local/bin/dedent-paste" }],
                 "type": "basic"

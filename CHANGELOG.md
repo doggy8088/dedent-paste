@@ -4,6 +4,12 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+- **行為變更**：macOS Karabiner 規則（`examples/macos/paste-dedent-plain-text.json` 與 `dedent-paste --install`）改為只認**左** Option（`left_option`），右 Option 不再被攔截，避免與語音輸入等佈局在右 Option 的工具衝突。習慣按右 Option+V 的使用者請改用左 Option，或依 README 把規則改回 `option`。（#1）
+- 新增 `-n`/`--no-paste` 與 `--paste-delay-ms <毫秒>` 參數，以及對應的 `DEDENT_PASTE_NO_PASTE`、`DEDENT_PASTE_PASTE_DELAY_MS` 環境變數：可只整理剪貼簿交由 skhd、Hammerspoon 等工具自行貼上，或在送出貼上前加入延遲。（#1）
+- macOS 送出 `Command+V` 前會先等待 Shift/Control/Option/Command 全部放開（最多 1 秒），修正快捷鍵觸發時實體 Option 仍按住導致應用程式收到 `Command+Option+V`、`osascript` 回傳成功卻沒有貼上的問題。（#1）
+- macOS 新增單一實例保護：同時只允許一個 `dedent-paste` 執行，後啟動者靜默結束，避免會 key-repeat 的快捷鍵工具一次貼上多次。（#1）
+- README 補充輔助使用與自動化權限說明、`osascript` exit code 0 不保證貼上成功、第三方快捷鍵工具（skhd）的建議設定，以及如何改用右 Option 或左右皆可。
+
 ## 0.4.0
 
 - 新增 Homebrew tap（[doggy8088/homebrew-dedent-paste](https://github.com/doggy8088/homebrew-dedent-paste)），macOS 可透過 `brew install doggy8088/dedent-paste/dedent-paste` 安裝；cargo-dist 發佈流程會自動產生並推送 Homebrew formula，tap 儲存庫以 `homebrew-tap/` 子模組納入本專案。

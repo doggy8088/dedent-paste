@@ -16,7 +16,7 @@
 
 建議搭配方式：
 
-- macOS：搭配 Karabiner-Elements，使用 `Option+V`
+- macOS：搭配 Karabiner-Elements，使用 `左 Option+V`（右 Option 保留給其他工具）
 - Windows：搭配 AutoHotkey，使用 `Win+V`
 
 也可以透過 npm 安裝 CLI：
@@ -41,7 +41,7 @@ Homebrew 6 之後對第三方 tap 需要先執行一次 `brew trust`，較舊版
 dedent-paste --install
 ```
 
-這會把 `Option+V` 規則寫進目前啟用中的 Karabiner-Elements profile，規則會直接指向 Homebrew 安裝的執行檔路徑。詳見〈[命令列參數](#命令列參數)〉。
+這會把 `左 Option+V` 規則寫進目前啟用中的 Karabiner-Elements profile，規則會直接指向 Homebrew 安裝的執行檔路徑。詳見〈[命令列參數](#命令列參數)〉。
 
 > 注意：Windows 預設的 `Win+V` 是「剪貼簿歷程記錄」。如果你使用下面的 AutoHotkey 腳本，這個預設快捷鍵會被覆蓋。
 
@@ -63,29 +63,38 @@ $HOME/.local/bin/dedent-paste
 
 ### 設定
 
-- 安裝程式在放好執行檔後會執行 `dedent-paste --install`，自動把 `Option+V` 規則加入目前啟用中的 Karabiner-Elements profile。
+- 安裝程式在放好執行檔後會執行 `dedent-paste --install`，自動把 `左 Option+V` 規則加入目前啟用中的 Karabiner-Elements profile。規則只認**左** Option（`left_option`），右 Option 不受影響，可留給語音輸入等需要獨佔右 Option 的工具。
 - 修改前會先備份 Karabiner 設定（`~/.config/karabiner/karabiner.json.bak-<時間戳記>`）。
 - Karabiner 規則會直接指向 `$HOME/.local/bin/dedent-paste`，所以即使你的 shell `PATH` 尚未包含 `$HOME/.local/bin`，快捷鍵仍可正常使用。
 - 如果你想在 Terminal 直接輸入 `dedent-paste`，再自行把 `$HOME/.local/bin` 加入 `PATH`。
 - 如果你想手動查看或匯入規則，可以參考 [`examples/macos/paste-dedent-plain-text.json`](examples/macos/paste-dedent-plain-text.json)。
 - 想移除快捷鍵時執行 `dedent-paste --uninstall`。
 
-Karabiner-Elements 可能需要 macOS「輔助使用」權限，才能透過 System Events 觸發貼上動作。
+#### 改用右 Option 或左右皆可
 
-請開啟：
+規則的修飾鍵定義在 `~/.config/karabiner/karabiner.json`（以及 `~/.config/karabiner/assets/complex_modifications/paste-dedent-plain-text.json`）中：
 
-```text
-系統設定 > 隱私權與安全性 > 輔助使用
+```json
+"modifiers": { "mandatory": ["left_option"] }
 ```
 
-確認 Karabiner-Elements 已被允許。
+把 `left_option` 改成 `right_option`（只認右 Option）或 `option`（左右皆可）即可，Karabiner 會自動重新載入。注意：之後再執行 `dedent-paste --install` 會把規則重設回 `left_option`。
+
+#### 權限
+
+貼上動作是由 Karabiner 啟動的 `dedent-paste` 透過 `osascript`（System Events）送出 `Command+V`，因此需要兩項授權：
+
+- **輔助使用**：`系統設定 > 隱私權與安全性 > 輔助使用`，確認 Karabiner-Elements（`karabiner_console_user_server`）已被允許。若看到 `System Events 發生錯誤：不允許「osascript」傳送按鍵。 (1002)`，就是這項權限不足。
+- **自動化**：第一次執行時 macOS 可能會詢問是否允許控制「System Events」，請允許。之後可在 `系統設定 > 隱私權與安全性 > 自動化` 檢視。
+
+> 注意：`osascript` 回傳成功（exit code 0）只代表 System Events 接受了按鍵事件，不保證目標欄位真的收到貼上。若剪貼簿已整理好但畫面上沒有貼上，多半是修飾鍵時序問題，請參考下方〈[貼上時序與第三方快捷鍵工具](#貼上時序與第三方快捷鍵工具)〉。
 
 ### 使用
 
 安裝與設定完成後，直接按：
 
 ```text
-Option+V
+左 Option+V
 ```
 
 ### 命令列參數
@@ -94,10 +103,14 @@ Option+V
 
 | 參數 | 說明 |
 |---|---|
+| `-n`, `--no-paste` | 只整理並寫回剪貼簿，不送出 `Command+V` / `Ctrl+V`；由呼叫端自行貼上 |
+| `--paste-delay-ms <毫秒>` | 修飾鍵放開後、送出貼上按鍵前額外等待的毫秒數（預設 `0`） |
 | `-h`, `--help` | 顯示參數說明 |
 | `-v`, `--version` | 顯示目前版本號 |
 | `-i`, `--install` | 初始化 Karabiner-Elements 設定（僅 macOS） |
 | `-u`, `--uninstall` | 移除 Karabiner-Elements 中的 dedent-paste 規則（僅 macOS） |
+
+`--no-paste` 與 `--paste-delay-ms` 可以同時使用，也可以改用環境變數 `DEDENT_PASTE_NO_PASTE`、`DEDENT_PASTE_PASTE_DELAY_MS`（見〈[環境變數](#環境變數)〉）；命令列參數優先。`-h`、`-v`、`-i`、`-u` 必須單獨使用。
 
 `--install` 的行為：
 
@@ -107,6 +120,25 @@ Option+V
 4. 如果找得到 `karabiner_cli`，會順便驗證產生的規則。
 
 `--uninstall` 會從**所有** profile 移除 `shell_command` 包含 `dedent-paste` 的規則（同樣會先備份），並刪除上述的 asset 檔案。
+
+### 貼上時序與第三方快捷鍵工具
+
+在 macOS 上，`dedent-paste` 寫回剪貼簿後會依序：
+
+1. **等待修飾鍵全部放開**（Shift、Control、Option、Command，最多等 1 秒）。快捷鍵觸發時實體 Option 通常還按著，若此時就送出 `Command+V`，許多應用程式會收到 `Command+Option+V` 而不是一般貼上，結果就是「exit code 0 但沒貼上」。
+2. 套用 `--paste-delay-ms` / `DEDENT_PASTE_PASTE_DELAY_MS` 指定的額外延遲（預設 0）。
+3. 透過 System Events 送出 `Command+V`。
+
+另外，同一時間只允許一個 `dedent-paste` 執行：後啟動的實例會立刻靜默結束（只寫一行記錄檔）。這是為了對付會產生 key-repeat 的快捷鍵工具（例如 skhd 的 `lalt - v` 在按住時會連續觸發數十次），避免一次按鍵貼上多次。
+
+如果你使用 skhd、Hammerspoon 等自己就能可靠送出按鍵的工具，建議改成「`dedent-paste` 只整理剪貼簿，由快捷鍵工具貼上」：
+
+```text
+# skhd 範例：左 Option+V
+lalt - v : ~/.local/bin/dedent-paste --no-paste && skhd -k "cmd - v"
+```
+
+`--no-paste` 模式下不會等待修飾鍵，也不會送出任何按鍵；請讓快捷鍵工具在 Option 與 V 都放開後再送出 `Command+V`。
 
 ## Windows
 
@@ -311,6 +343,10 @@ EnvSet "DEDENT_PASTE_LANG", "zh-TW"
 | `DEDENT_PASTE_GEMINI_SYSTEM_PROMPT_FILE` | 自訂 system prompt 檔案路徑 | — |
 | `DEDENT_PASTE_GEMINI_TIMEOUT_SECS` | API 逾時秒數 | `60` |
 | `DEDENT_PASTE_LOG_FILE` | 記錄檔路徑 | macOS：`~/Library/Logs/dedent-paste.log`；Windows：`%LOCALAPPDATA%\dedent-paste\dedent-paste.log` |
+| `DEDENT_PASTE_NO_PASTE` | 設為 `1`/`true`/`yes`/`on` 時只整理剪貼簿、不送出貼上按鍵（同 `--no-paste`） | 未設定：會貼上 |
+| `DEDENT_PASTE_PASTE_DELAY_MS` | 修飾鍵放開後、送出貼上按鍵前的額外延遲毫秒數（同 `--paste-delay-ms`） | `0` |
+
+貼上相關的兩個變數在文字與圖片轉文字兩種流程都適用；`--install` 產生的 Karabiner 規則會先載入 `~/.config/dedent-paste/env`，所以直接寫在該檔案即可，不需修改 `karabiner.json`。
 
 自訂 system prompt 中可以使用 `{language}` 佔位符，執行時會代換成輸出語言。
 
@@ -324,6 +360,8 @@ EnvSet "DEDENT_PASTE_LANG", "zh-TW"
 
 ### 已知限制
 
+- macOS 的貼上是透過 System Events 模擬 `Command+V`；`osascript` 成功結束不代表目標欄位一定收到內容。已知的原因與對策見〈[貼上時序與第三方快捷鍵工具](#貼上時序與第三方快捷鍵工具)〉。
+- 單一實例保護僅在 macOS 實作（Windows 的 AutoHotkey 範例已透過 `RunWait` 與 `KeyWait` 避免重複執行）。
 - 在 Finder 複製 HEIC「檔案」時，剪貼簿放的是檔案路徑而非圖片內容，會視為沒有圖片。請改用預覽程式開啟後複製，或直接使用螢幕截圖。
 - Gemini 呼叫期間（數秒至數十秒）沒有進度提示，完成後才會貼上。
 

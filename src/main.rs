@@ -1,13 +1,14 @@
 use std::error::Error;
 use std::fs::OpenOptions;
 use std::io::Write as _;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 #[cfg(target_os = "macos")]
 use dedent_paste::text_from_bytes;
 use dedent_paste::{
-    GeminiError, dedent_text, format_log_line, format_timestamp, is_silent_error, resolve_api_key,
-    resolve_gemini_settings, resolve_log_path,
+    GeminiError, PasteCliOverrides, PasteSettings, dedent_text, format_log_line, format_timestamp,
+    is_silent_error, resolve_api_key, resolve_gemini_settings, resolve_log_path,
+    resolve_paste_settings,
 };
 
 mod gemini;
@@ -19,14 +20,27 @@ const HELP: &str = "\
 dedent-paste {version}
 Paste clipboard text with common indentation removed.
 
-Usage: dedent-paste [OPTION]
+Usage: dedent-paste [PASTE OPTIONS]
+       dedent-paste (-i | -u | -v | -h)
 
 With no options, dedent-paste reads the clipboard as plain text, removes the
 common indentation, writes the result back, and pastes it. This is what the
-Option+V (macOS, Karabiner-Elements) or Win+V (Windows, AutoHotkey) hotkey runs.
+Left Option+V (macOS, Karabiner-Elements) or Win+V (Windows, AutoHotkey) hotkey
+runs. On macOS the paste keystroke is sent only after all modifier keys have
+been released (waits up to 1 s), and a second instance started while one is
+still running exits immediately so key-repeat cannot paste twice.
 
-Options:
-  -i, --install      Register the Option+V rule in Karabiner-Elements (macOS).
+Paste options (may be combined):
+  -n, --no-paste             Rewrite the clipboard only; do not send Cmd+V /
+                             Ctrl+V. Use this when your hotkey manager (skhd,
+                             Hammerspoon, ...) sends the paste keystroke itself.
+      --paste-delay-ms <MS>  Extra delay before the paste keystroke, after the
+                             modifier keys are released. Default 0.
+  Environment equivalents: DEDENT_PASTE_NO_PASTE=1, DEDENT_PASTE_PASTE_DELAY_MS=<MS>.
+  Command-line flags take precedence.
+
+Other options (exclusive):
+  -i, --install      Register the Left Option+V rule in Karabiner-Elements (macOS).
                      The rule points at this executable. Existing dedent-paste
                      rules are replaced and karabiner.json is backed up first.
   -u, --uninstall    Remove every dedent-paste rule from Karabiner-Elements (macOS)
@@ -34,12 +48,13 @@ Options:
   -v, --version      Print the version and exit.
   -h, --help         Print this help and exit.
 
-Environment variables (Gemini image-to-text) are documented at:
-  https://github.com/doggy8088/dedent-paste#readme
+All environment variables (paste behavior, Gemini image-to-text, logging) are
+documented at: https://github.com/doggy8088/dedent-paste#readme
 ";
 
+#[derive(Debug, PartialEq, Eq)]
 enum Command {
-    Paste,
+    Paste(PasteCliOverrides),
     Help,
     Version,
     Install,
@@ -49,17 +64,46 @@ enum Command {
 fn parse_args(args: impl Iterator<Item = String>) -> Result<Command, String> {
     let args: Vec<String> = args.collect();
 
-    match args.as_slice() {
-        [] => Ok(Command::Paste),
-        [flag] => match flag.as_str() {
-            "-h" | "--help" => Ok(Command::Help),
-            "-v" | "--version" => Ok(Command::Version),
-            "-i" | "--install" => Ok(Command::Install),
-            "-u" | "--uninstall" => Ok(Command::Uninstall),
-            other => Err(format!("unknown option '{other}'")),
-        },
-        _ => Err("expected at most one option".to_string()),
+    // Exclusive options must appear alone.
+    if let [flag] = args.as_slice() {
+        match flag.as_str() {
+            "-h" | "--help" => return Ok(Command::Help),
+            "-v" | "--version" => return Ok(Command::Version),
+            "-i" | "--install" => return Ok(Command::Install),
+            "-u" | "--uninstall" => return Ok(Command::Uninstall),
+            _ => {}
+        }
     }
+
+    let mut overrides = PasteCliOverrides::default();
+    let mut iter = args.iter();
+    while let Some(arg) = iter.next() {
+        match arg.as_str() {
+            "-n" | "--no-paste" => overrides.no_paste = true,
+            "--paste-delay-ms" => {
+                let value = iter
+                    .next()
+                    .ok_or("--paste-delay-ms requires a value in milliseconds")?;
+                overrides.delay_ms = Some(parse_delay_ms(value)?);
+            }
+            other if other.starts_with("--paste-delay-ms=") => {
+                overrides.delay_ms = Some(parse_delay_ms(&other["--paste-delay-ms=".len()..])?);
+            }
+            "-h" | "--help" | "-v" | "--version" | "-i" | "--install" | "-u" | "--uninstall" => {
+                return Err(format!("'{arg}' cannot be combined with other options"));
+            }
+            other => return Err(format!("unknown option '{other}'")),
+        }
+    }
+
+    Ok(Command::Paste(overrides))
+}
+
+fn parse_delay_ms(value: &str) -> Result<u64, String> {
+    value
+        .trim()
+        .parse::<u64>()
+        .map_err(|_| format!("--paste-delay-ms must be a non-negative integer, got '{value}'"))
 }
 
 fn main() {
@@ -73,7 +117,7 @@ fn main() {
     };
 
     let result = match command {
-        Command::Paste => run(),
+        Command::Paste(overrides) => run(overrides),
         Command::Help => {
             print!("{}", HELP.replace("{version}", VERSION));
             Ok(())
@@ -92,22 +136,52 @@ fn main() {
     }
 }
 
-fn run() -> Result<(), Box<dyn Error>> {
+/// Longest time to wait for the user to release the hotkey's modifier keys
+/// before the paste keystroke is sent.
+const MODIFIER_RELEASE_TIMEOUT: Duration = Duration::from_secs(1);
+
+fn run(overrides: PasteCliOverrides) -> Result<(), Box<dyn Error>> {
+    let settings = resolve_paste_settings(|name| std::env::var(name).ok(), overrides)?;
+
+    // Hotkey managers with key-repeat (skhd, ...) can start many copies per
+    // keypress. Only the first one may touch the clipboard and paste.
+    let _instance_lock = match platform::try_lock_single_instance()? {
+        Some(lock) => lock,
+        None => {
+            log_line("info", "another dedent-paste instance is running; skipping");
+            return Ok(());
+        }
+    };
+
     match platform::read_clipboard()? {
         Some(text) if !text.is_empty() => {
             let dedented = dedent_text(&text);
 
             platform::write_clipboard(&dedented)?;
-            platform::paste_from_clipboard()?;
-
-            Ok(())
+            finish_paste(&settings)
         }
-        _ => run_image_to_text(),
+        _ => run_image_to_text(&settings),
     }
 }
 
-fn run_image_to_text() -> Result<(), Box<dyn Error>> {
-    match image_to_text() {
+/// Final step shared by the text and image paths: honor `--no-paste`, give the
+/// user time to release the hotkey chord, then send the paste keystroke.
+fn finish_paste(settings: &PasteSettings) -> Result<(), Box<dyn Error>> {
+    if settings.no_paste {
+        log_line("info", "clipboard updated; paste skipped (--no-paste)");
+        return Ok(());
+    }
+
+    platform::wait_for_modifiers_released(MODIFIER_RELEASE_TIMEOUT);
+    if !settings.delay.is_zero() {
+        std::thread::sleep(settings.delay);
+    }
+
+    platform::paste_from_clipboard()
+}
+
+fn run_image_to_text(settings: &PasteSettings) -> Result<(), Box<dyn Error>> {
+    match image_to_text(settings) {
         Ok(()) => Ok(()),
         Err(error) => {
             let silent = error
@@ -126,22 +200,20 @@ fn run_image_to_text() -> Result<(), Box<dyn Error>> {
     }
 }
 
-fn image_to_text() -> Result<(), Box<dyn Error>> {
+fn image_to_text(settings: &PasteSettings) -> Result<(), Box<dyn Error>> {
     let get_env = |name: &str| std::env::var(name).ok();
 
     resolve_api_key(get_env)?;
 
     let image = platform::read_clipboard_image()?.ok_or(GeminiError::NoImage)?;
-    let settings = resolve_gemini_settings(get_env, |path| {
+    let gemini_settings = resolve_gemini_settings(get_env, |path| {
         std::fs::read_to_string(path).map_err(|error| error.to_string())
     })?;
 
-    let text = gemini::generate_text_from_image(&settings, &image)?;
+    let text = gemini::generate_text_from_image(&gemini_settings, &image)?;
 
     platform::write_clipboard(&text)?;
-    platform::paste_from_clipboard()?;
-
-    Ok(())
+    finish_paste(settings)
 }
 
 fn log_line(level: &str, message: &str) {
@@ -169,9 +241,12 @@ fn log_line(level: &str, message: &str) {
 #[cfg(target_os = "macos")]
 mod platform {
     use std::error::Error;
+    use std::fs::File;
     use std::io::Write;
+    use std::os::fd::AsRawFd;
     use std::path::PathBuf;
     use std::process::{Command, Stdio};
+    use std::time::{Duration, Instant};
 
     use dedent_paste::{ClipboardImage, applescript_string_literal, parse_osascript_image_data};
 
@@ -264,6 +339,74 @@ mod platform {
     pub fn default_log_path() -> Option<PathBuf> {
         let home = std::env::var_os("HOME")?;
         Some(PathBuf::from(home).join("Library/Logs/dedent-paste.log"))
+    }
+
+    // CoreGraphics is a system framework; declaring the two symbols we need
+    // avoids pulling in a binding crate. `CGEventSourceFlagsState` only reads
+    // the current modifier state and needs no Accessibility permission.
+    #[link(name = "CoreGraphics", kind = "framework")]
+    unsafe extern "C" {
+        fn CGEventSourceFlagsState(state_id: i32) -> u64;
+    }
+
+    unsafe extern "C" {
+        fn flock(fd: i32, operation: i32) -> i32;
+    }
+
+    const CG_EVENT_SOURCE_STATE_COMBINED_SESSION: i32 = 0;
+    const CG_EVENT_FLAG_MASK_SHIFT: u64 = 0x0002_0000;
+    const CG_EVENT_FLAG_MASK_CONTROL: u64 = 0x0004_0000;
+    const CG_EVENT_FLAG_MASK_ALTERNATE: u64 = 0x0008_0000;
+    const CG_EVENT_FLAG_MASK_COMMAND: u64 = 0x0010_0000;
+    const MODIFIER_MASK: u64 = CG_EVENT_FLAG_MASK_SHIFT
+        | CG_EVENT_FLAG_MASK_CONTROL
+        | CG_EVENT_FLAG_MASK_ALTERNATE
+        | CG_EVENT_FLAG_MASK_COMMAND;
+    const MODIFIER_POLL_INTERVAL: Duration = Duration::from_millis(10);
+
+    const LOCK_EX: i32 = 2;
+    const LOCK_NB: i32 = 4;
+    const EWOULDBLOCK: i32 = 35;
+
+    /// Block until Shift, Control, Option and Command are all released, or
+    /// `timeout` elapses. Sending Cmd+V while the physical Option from the
+    /// hotkey is still down makes many apps see Cmd+Option+V instead.
+    pub fn wait_for_modifiers_released(timeout: Duration) {
+        let deadline = Instant::now() + timeout;
+        loop {
+            let flags = unsafe { CGEventSourceFlagsState(CG_EVENT_SOURCE_STATE_COMBINED_SESSION) };
+            if flags & MODIFIER_MASK == 0 || Instant::now() >= deadline {
+                return;
+            }
+            std::thread::sleep(MODIFIER_POLL_INTERVAL);
+        }
+    }
+
+    /// Holds the single-instance lock for the lifetime of the process.
+    pub struct InstanceLock(#[allow(dead_code)] File);
+
+    /// Take a non-blocking exclusive lock on a per-user lock file. Returns
+    /// `Ok(None)` when another instance already holds it.
+    pub fn try_lock_single_instance() -> Result<Option<InstanceLock>, Box<dyn Error>> {
+        let path = std::env::temp_dir().join("dedent-paste.lock");
+        let file = File::options()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(false)
+            .open(&path)
+            .map_err(|error| format!("failed to open lock file {}: {error}", path.display()))?;
+
+        let result = unsafe { flock(file.as_raw_fd(), LOCK_EX | LOCK_NB) };
+        if result == 0 {
+            return Ok(Some(InstanceLock(file)));
+        }
+
+        let error = std::io::Error::last_os_error();
+        if error.raw_os_error() == Some(EWOULDBLOCK) {
+            return Ok(None);
+        }
+        Err(format!("failed to lock {}: {error}", path.display()).into())
     }
 }
 
@@ -368,6 +511,18 @@ mod platform {
         }
     }
 
+    /// AutoHotkey's `KeyWait` in the documented scripts already waits for the
+    /// Win keys to be released, so nothing to do here.
+    pub fn wait_for_modifiers_released(_timeout: Duration) {}
+
+    pub struct InstanceLock;
+
+    /// AutoHotkey runs one hotkey thread at a time and the example scripts use
+    /// `RunWait`, so duplicate launches are not a problem on Windows.
+    pub fn try_lock_single_instance() -> Result<Option<InstanceLock>, Box<dyn Error>> {
+        Ok(Some(InstanceLock))
+    }
+
     pub fn default_log_path() -> Option<PathBuf> {
         let local_app_data = std::env::var_os("LOCALAPPDATA")?;
         Some(
@@ -401,6 +556,7 @@ mod platform {
 mod platform {
     use std::error::Error;
     use std::path::PathBuf;
+    use std::time::Duration;
 
     use dedent_paste::ClipboardImage;
 
@@ -422,7 +578,97 @@ mod platform {
 
     pub fn notify_error(_message: &str) {}
 
+    pub fn wait_for_modifiers_released(_timeout: Duration) {}
+
+    pub struct InstanceLock;
+
+    pub fn try_lock_single_instance() -> Result<Option<InstanceLock>, Box<dyn Error>> {
+        Ok(Some(InstanceLock))
+    }
+
     pub fn default_log_path() -> Option<PathBuf> {
         None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn parse(args: &[&str]) -> Result<Command, String> {
+        parse_args(args.iter().map(|arg| arg.to_string()))
+    }
+
+    #[test]
+    fn no_args_means_default_paste() {
+        assert_eq!(parse(&[]), Ok(Command::Paste(PasteCliOverrides::default())));
+    }
+
+    #[test]
+    fn exclusive_flags_parse_alone() {
+        assert_eq!(parse(&["-h"]), Ok(Command::Help));
+        assert_eq!(parse(&["--help"]), Ok(Command::Help));
+        assert_eq!(parse(&["-v"]), Ok(Command::Version));
+        assert_eq!(parse(&["--version"]), Ok(Command::Version));
+        assert_eq!(parse(&["-i"]), Ok(Command::Install));
+        assert_eq!(parse(&["--install"]), Ok(Command::Install));
+        assert_eq!(parse(&["-u"]), Ok(Command::Uninstall));
+        assert_eq!(parse(&["--uninstall"]), Ok(Command::Uninstall));
+    }
+
+    #[test]
+    fn paste_options_combine() {
+        assert_eq!(
+            parse(&["--no-paste"]),
+            Ok(Command::Paste(PasteCliOverrides {
+                no_paste: true,
+                delay_ms: None,
+            }))
+        );
+        assert_eq!(
+            parse(&["-n", "--paste-delay-ms", "250"]),
+            Ok(Command::Paste(PasteCliOverrides {
+                no_paste: true,
+                delay_ms: Some(250),
+            }))
+        );
+        assert_eq!(
+            parse(&["--paste-delay-ms=120"]),
+            Ok(Command::Paste(PasteCliOverrides {
+                no_paste: false,
+                delay_ms: Some(120),
+            }))
+        );
+    }
+
+    #[test]
+    fn invalid_arguments_are_rejected() {
+        assert!(parse(&["--bogus"]).unwrap_err().contains("--bogus"));
+        assert!(
+            parse(&["--paste-delay-ms"])
+                .unwrap_err()
+                .contains("requires a value")
+        );
+        assert!(
+            parse(&["--paste-delay-ms", "abc"])
+                .unwrap_err()
+                .contains("abc")
+        );
+        assert!(parse(&["--paste-delay-ms=-1"]).is_err());
+        assert!(
+            parse(&["-i", "--no-paste"])
+                .unwrap_err()
+                .contains("cannot be combined")
+        );
+        assert!(
+            parse(&["--no-paste", "-h"])
+                .unwrap_err()
+                .contains("cannot be combined")
+        );
+        assert!(
+            parse(&["-i", "-u"])
+                .unwrap_err()
+                .contains("cannot be combined")
+        );
     }
 }

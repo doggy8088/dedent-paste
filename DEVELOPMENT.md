@@ -64,7 +64,7 @@ Because releases before 0.4.0 ignore command-line arguments and would run the pa
     {
       "from": {
         "key_code": "v",
-        "modifiers": { "mandatory": ["option"] }
+        "modifiers": { "mandatory": ["left_option"] }
       },
       "to": [
         {
@@ -76,6 +76,21 @@ Because releases before 0.4.0 ignore command-line arguments and would run the pa
   ]
 }
 ```
+
+## Paste sequence (macOS)
+
+`run()` in `src/main.rs` performs, in order:
+
+1. Resolve `PasteSettings` (`lib.rs::resolve_paste_settings`) from `--no-paste` / `--paste-delay-ms` and the `DEDENT_PASTE_NO_PASTE` / `DEDENT_PASTE_PASTE_DELAY_MS` environment variables. Flags win.
+2. Take a non-blocking exclusive `flock` on `$TMPDIR/dedent-paste.lock` (`platform::try_lock_single_instance`). If another instance holds it, log one info line and exit 0. This stops key-repeating hotkey managers (skhd) from spawning many pasting processes.
+3. Read, dedent, and write the clipboard (or run the Gemini image path).
+4. `finish_paste`: return early on `--no-paste`; otherwise `platform::wait_for_modifiers_released` polls `CGEventSourceFlagsState(kCGEventSourceStateCombinedSessionState)` every 10 ms until Shift/Control/Option/Command are all clear or 1 s has passed, then sleeps for the configured delay, then sends `Command+V` via `osascript`.
+
+`CGEventSourceFlagsState` and `flock` are declared with raw `extern "C"` blocks (CoreGraphics framework and libSystem respectively) to avoid adding binding crates. Reading modifier state needs no Accessibility or Input Monitoring permission.
+
+Why the wait matters: when Karabiner runs the `shell_command`, the physical Option key is usually still down. A `Command+V` posted at that moment reaches the target app as `Command+Option+V`, which most apps ignore or treat as "paste and match style", even though `osascript` exits 0. See issue #1.
+
+Windows and other platforms implement `wait_for_modifiers_released` and `try_lock_single_instance` as no-ops: the documented AutoHotkey scripts already `KeyWait` for the Win keys and use `RunWait`, and AutoHotkey runs one hotkey thread at a time.
 
 ## CI/CD
 

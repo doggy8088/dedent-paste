@@ -405,7 +405,7 @@ mod tests {
         assert_eq!(rule["manipulators"][0]["from"]["key_code"], "v");
         assert_eq!(
             rule["manipulators"][0]["from"]["modifiers"]["mandatory"],
-            json!(["option"])
+            json!(["left_option"])
         );
         assert!(rule_targets_dedent_paste(&rule));
     }

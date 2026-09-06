@@ -591,6 +591,58 @@ pub fn is_silent_error(error: &GeminiError) -> bool {
     matches!(error, GeminiError::MissingApiKey | GeminiError::NoImage)
 }
 
+const ENV_NO_PASTE: &str = "DEDENT_PASTE_NO_PASTE";
+const ENV_PASTE_DELAY_MS: &str = "DEDENT_PASTE_PASTE_DELAY_MS";
+
+/// Command-line overrides for [`resolve_paste_settings`]. `None` means "not
+/// given on the command line, fall back to the environment".
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct PasteCliOverrides {
+    pub no_paste: bool,
+    pub delay_ms: Option<u64>,
+}
+
+/// How the final paste step behaves after the clipboard has been rewritten.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PasteSettings {
+    /// Only rewrite the clipboard; leave sending Cmd+V / Ctrl+V to the caller.
+    pub no_paste: bool,
+    /// Extra fixed delay applied after modifier keys are released and before
+    /// the paste keystroke is sent.
+    pub delay: Duration,
+}
+
+/// Resolve paste behavior from the environment (`DEDENT_PASTE_NO_PASTE`,
+/// `DEDENT_PASTE_PASTE_DELAY_MS`) with command-line flags taking precedence.
+pub fn resolve_paste_settings(
+    get: impl Fn(&str) -> Option<String>,
+    cli: PasteCliOverrides,
+) -> Result<PasteSettings, String> {
+    let no_paste = cli.no_paste || env_non_empty(&get, ENV_NO_PASTE).is_some_and(|v| is_truthy(&v));
+
+    let delay_ms = match cli.delay_ms {
+        Some(ms) => ms,
+        None => match env_non_empty(&get, ENV_PASTE_DELAY_MS) {
+            Some(raw) => raw.trim().parse::<u64>().map_err(|_| {
+                format!("{ENV_PASTE_DELAY_MS} must be a non-negative integer (milliseconds), got {raw:?}")
+            })?,
+            None => 0,
+        },
+    };
+
+    Ok(PasteSettings {
+        no_paste,
+        delay: Duration::from_millis(delay_ms),
+    })
+}
+
+fn is_truthy(value: &str) -> bool {
+    matches!(
+        value.trim().to_ascii_lowercase().as_str(),
+        "1" | "true" | "yes" | "on"
+    )
+}
+
 pub fn resolve_log_path(
     get: impl Fn(&str) -> Option<String>,
     default: Option<PathBuf>,
@@ -1188,5 +1240,68 @@ mod tests {
         );
 
         assert!(bmp_to_png(b"not a bmp").is_err());
+    }
+
+    #[test]
+    fn paste_settings_default_to_pasting_immediately() {
+        let settings = resolve_paste_settings(|_| None, PasteCliOverrides::default()).unwrap();
+        assert_eq!(
+            settings,
+            PasteSettings {
+                no_paste: false,
+                delay: Duration::ZERO
+            }
+        );
+    }
+
+    #[test]
+    fn paste_settings_read_environment() {
+        let env = |name: &str| match name {
+            "DEDENT_PASTE_NO_PASTE" => Some("YES".to_string()),
+            "DEDENT_PASTE_PASTE_DELAY_MS" => Some(" 250 ".to_string()),
+            _ => None,
+        };
+        let settings = resolve_paste_settings(env, PasteCliOverrides::default()).unwrap();
+        assert!(settings.no_paste);
+        assert_eq!(settings.delay, Duration::from_millis(250));
+
+        for falsy in ["0", "false", "no", "off", "", "   "] {
+            let env = |name: &str| (name == "DEDENT_PASTE_NO_PASTE").then(|| falsy.to_string());
+            assert!(
+                !resolve_paste_settings(env, PasteCliOverrides::default())
+                    .unwrap()
+                    .no_paste,
+                "{falsy:?} should not enable no-paste"
+            );
+        }
+    }
+
+    #[test]
+    fn paste_settings_cli_overrides_environment() {
+        let env = |name: &str| match name {
+            "DEDENT_PASTE_PASTE_DELAY_MS" => Some("999".to_string()),
+            _ => None,
+        };
+        let settings = resolve_paste_settings(
+            env,
+            PasteCliOverrides {
+                no_paste: true,
+                delay_ms: Some(40),
+            },
+        )
+        .unwrap();
+        assert!(settings.no_paste);
+        assert_eq!(settings.delay, Duration::from_millis(40));
+    }
+
+    #[test]
+    fn paste_settings_reject_invalid_delay() {
+        let env = |name: &str| (name == "DEDENT_PASTE_PASTE_DELAY_MS").then(|| "abc".to_string());
+        let error = resolve_paste_settings(env, PasteCliOverrides::default()).unwrap_err();
+        assert!(error.contains("DEDENT_PASTE_PASTE_DELAY_MS"));
+        assert!(error.contains("abc"));
+
+        let env = |name: &str| (name == "DEDENT_PASTE_PASTE_DELAY_MS").then(|| "-5".to_string());
+        assert!(resolve_paste_settings(env, PasteCliOverrides::default()).is_err());
     }
 }
