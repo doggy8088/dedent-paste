@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="dedent-paste removes common indentation from your clipboard and pastes clean plain text with Option+V on macOS or Win+V on Windows.">
+    <meta name="description" content="dedent-paste removes common indentation from your clipboard and pastes clean plain text with Left Option+V on macOS or Win+V on Windows.">
     <meta name="keywords" content="dedent paste, plain text paste, Homebrew, brew install, Karabiner-Elements, AutoHotkey, macOS clipboard, Windows clipboard, Option+V, Win+V, clipboard tool, developer productivity">
     <meta name="author" content="Will 保哥">
     <meta name="robots" content="index, follow">
@@ -13,7 +13,7 @@
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="dedent-paste">
     <meta property="og:title" content="dedent-paste - clean paste shortcuts">
-    <meta property="og:description" content="Remove common indentation from your clipboard and paste clean plain text with Option+V on macOS or Win+V on Windows.">
+    <meta property="og:description" content="Remove common indentation from your clipboard and paste clean plain text with Left Option+V on macOS or Win+V on Windows.">
     <meta property="og:url" content="https://dedent-paste.gh.miniasp.com/">
     <meta property="og:image" content="https://dedent-paste.gh.miniasp.com/assets/og-image.jpg">
     <meta property="og:image:secure_url" content="https://dedent-paste.gh.miniasp.com/assets/og-image.jpg">
@@ -24,7 +24,7 @@
     <meta property="og:locale" content="en_US">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="dedent-paste - clean paste shortcuts">
-    <meta name="twitter:description" content="Remove common indentation from your clipboard and paste clean plain text with Option+V on macOS or Win+V on Windows.">
+    <meta name="twitter:description" content="Remove common indentation from your clipboard and paste clean plain text with Left Option+V on macOS or Win+V on Windows.">
     <meta name="twitter:image" content="https://dedent-paste.gh.miniasp.com/assets/og-image.jpg">
     <meta name="twitter:image:alt" content="dedent-paste landing page showing Paste clean. Stay in flow. and before/after clipboard indentation cards.">
     <title>dedent-paste - clean paste shortcuts</title>
@@ -819,7 +819,7 @@
           <h1>Paste clean. <em>Stay in flow.</em></h1>
           <p class="lead">
             dedent-paste removes the common indentation from your clipboard, rewrites the result as plain text,
-            and pastes it immediately. Use Option+V with Karabiner-Elements on macOS, or Win+V with AutoHotkey on Windows.
+            and pastes it immediately. Use Left Option+V with Karabiner-Elements on macOS, or Win+V with AutoHotkey on Windows.
           </p>
 
           <div class="install-card" aria-label="Install commands">
@@ -847,7 +847,7 @@
               </div>
             </div>
             <p class="install-note">
-              Homebrew installs the binary only; <code>dedent-paste --install</code> adds the Option+V rule to
+              Homebrew installs the binary only; <code>dedent-paste --install</code> adds the Left Option+V rule to
               Karabiner-Elements. The shell installer does both in one go. Also on
               <a href="https://www.npmjs.com/package/dedent-paste">npm</a> as <code>npm install -g dedent-paste</code>.
               For AutoHotkey, prefer the fixed path <code>%USERPROFILE%\.local\bin\dedent-paste.exe</code>
@@ -924,12 +924,12 @@
         </article>
         <article class="feature">
           <span class="feature-index">2 / Hotkey</span>
-          <strong>Wire up Option+V</strong>
+          <strong>Wire up Left Option+V</strong>
           <p>
             Install <a href="https://karabiner-elements.pqrs.org/">Karabiner-Elements</a> if you have not already
             (<code>brew install --cask karabiner-elements</code>), then run <code>dedent-paste --install</code>. It
-            backs up <code>karabiner.json</code>, adds the Option+V rule pointing at the Homebrew binary, and
-            replaces any older dedent-paste rule it finds. Allow Karabiner-Elements under Privacy &amp; Security &gt; Accessibility.
+            backs up <code>karabiner.json</code>, adds a Left Option+V rule pointing at the Homebrew binary, and
+            replaces any older dedent-paste rule it finds. The right Option stays free for other tools. Allow Karabiner-Elements under Privacy &amp; Security &gt; Accessibility.
           </p>
         </article>
         <article class="feature">
@@ -954,7 +954,7 @@
       <section class="features" aria-label="Platform quick guide">
         <article class="feature">
           <span class="feature-index">macOS</span>
-          <strong>Karabiner + Option+V</strong>
+          <strong>Karabiner + Left Option+V</strong>
           <p>Install with Homebrew or the shell installer, run <code>dedent-paste --install</code> to add the Karabiner rule (the shell installer does this for you), and allow Accessibility access if macOS asks.</p>
         </article>
         <article class="feature">
@@ -981,7 +981,7 @@
         <article class="feature">
           <span class="feature-index">01 / Shortcut</span>
           <strong>One key chord</strong>
-          <p>Karabiner-Elements maps <code>Option+V</code> on macOS. AutoHotkey can map <code>Win+V</code> on Windows, or another shortcut if you want to keep clipboard history.</p>
+          <p>Karabiner-Elements maps <code>Left Option+V</code> on macOS, leaving the right Option for other tools. AutoHotkey can map <code>Win+V</code> on Windows, or another shortcut if you want to keep clipboard history.</p>
         </article>
         <article class="feature">
           <span class="feature-index">02 / Release</span>
@@ -991,7 +991,7 @@
         <article class="feature">
           <span class="feature-index">03 / Clipboard</span>
           <strong>Plain text, UTF-8 safe</strong>
-          <p>The clipboard is read as text, written back as UTF-8, then pasted with macOS System Events or a simulated <code>Ctrl+V</code> on Windows.</p>
+          <p>The clipboard is read as text, written back as UTF-8, then pasted with macOS System Events or a simulated <code>Ctrl+V</code> on Windows. On macOS the paste waits until you release the modifier keys, and only one instance runs at a time. Prefer your own hotkey manager (skhd, Hammerspoon)? Run <code>dedent-paste --no-paste</code> and send <code>Cmd+V</code> yourself.</p>
         </article>
       </section>
 
@@ -1050,7 +1050,7 @@
           <span class="footer-kicker">Paste clean on macOS and Windows</span>
           <strong class="footer-title">For snippets, Markdown, prompts, and notes that need to move without extra indentation.</strong>
           <p class="footer-copy">
-            dedent-paste only changes the clipboard text for the special shortcut you wire up: <code>Option+V</code> via
+            dedent-paste only changes the clipboard text for the special shortcut you wire up: <code>Left Option+V</code> via
             Karabiner-Elements on macOS, or <code>Win+V</code> via AutoHotkey on Windows. Keep the original source when exact
             indentation matters, and remap the Windows hotkey if you want to keep the built-in clipboard history shortcut.
           </p>
