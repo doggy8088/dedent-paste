@@ -4,9 +4,12 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+## 0.3.2
+
 - 支援辨識 `•` 提示／項目符號格式，移除提示符與續行縮排並展開段落中的視覺換行。
 - 支援辨識 `▸` 與 `▾` 前綴（如 Copilot CLI 思考區塊），移除前綴與續行縮排並保留原有換行。
 - 提示格式換行接合支援保留逗號（`，`、`,`）結尾的換行，視為手動換行而不與下一行接合。
+- 新增以 Remotion 製作的產品中文介紹影片專案 intro-video。
 
 ## 0.3.1
 
