@@ -5,6 +5,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 #[cfg(target_os = "macos")]
 use dedent_paste::text_from_bytes;
+use dedent_paste::update::{self, UpdateOptions};
 use dedent_paste::{
     GeminiError, PasteCliOverrides, PasteSettings, dedent_text, format_log_line, format_timestamp,
     is_silent_error, resolve_api_key, resolve_gemini_settings, resolve_log_path,
@@ -22,6 +23,7 @@ Paste clipboard text with common indentation removed.
 
 Usage: dedent-paste [PASTE OPTIONS]
        dedent-paste (-i | -u | -v | -h)
+       dedent-paste update [UPDATE OPTIONS]
 
 With no options, dedent-paste reads the clipboard as plain text, removes the
 common indentation, writes the result back, and pastes it. This is what the
@@ -29,6 +31,10 @@ Left Option+V (macOS, Karabiner-Elements) or Win+V (Windows, AutoHotkey) hotkey
 runs. On macOS the paste keystroke is sent only after all modifier keys have
 been released (waits up to 1 s), and a second instance started while one is
 still running exits immediately so key-repeat cannot paste twice.
+
+Subcommands:
+  update                     Update dedent-paste to the latest release. Run
+                             'dedent-paste update --help' for options.
 
 Paste options (may be combined):
   -n, --no-paste             Rewrite the clipboard only; do not send Cmd+V /
@@ -52,6 +58,18 @@ All environment variables (paste behavior, Gemini image-to-text, logging) are
 documented at: https://github.com/doggy8088/dedent-paste#readme
 ";
 
+const UPDATE_HELP: &str = "\
+dedent-paste update {version}
+Update dedent-paste to the latest release.
+
+Usage: dedent-paste update [OPTIONS]
+
+Options:
+  -c, --check    Check for updates without installing
+  -f, --force    Force reinstall even if already up to date
+  -h, --help     Print this help and exit
+";
+
 #[derive(Debug, PartialEq, Eq)]
 enum Command {
     Paste(PasteCliOverrides),
@@ -59,10 +77,18 @@ enum Command {
     Version,
     Install,
     Uninstall,
+    Update(UpdateOptions),
+    UpdateHelp,
 }
 
 fn parse_args(args: impl Iterator<Item = String>) -> Result<Command, String> {
     let args: Vec<String> = args.collect();
+
+    if let Some(first) = args.first() {
+        if first == "update" {
+            return parse_update_args(&args[1..]);
+        }
+    }
 
     // Exclusive options must appear alone.
     if let [flag] = args.as_slice() {
@@ -71,6 +97,7 @@ fn parse_args(args: impl Iterator<Item = String>) -> Result<Command, String> {
             "-v" | "--version" => return Ok(Command::Version),
             "-i" | "--install" => return Ok(Command::Install),
             "-u" | "--uninstall" => return Ok(Command::Uninstall),
+            "--update" => return Ok(Command::Update(UpdateOptions::default())),
             _ => {}
         }
     }
@@ -89,14 +116,34 @@ fn parse_args(args: impl Iterator<Item = String>) -> Result<Command, String> {
             other if other.starts_with("--paste-delay-ms=") => {
                 overrides.delay_ms = Some(parse_delay_ms(&other["--paste-delay-ms=".len()..])?);
             }
-            "-h" | "--help" | "-v" | "--version" | "-i" | "--install" | "-u" | "--uninstall" => {
+            "-h" | "--help" | "-v" | "--version" | "-i" | "--install" | "-u" | "--uninstall"
+            | "--update" => {
                 return Err(format!("'{arg}' cannot be combined with other options"));
+            }
+            "update" => {
+                return Err(
+                    "'update' is a subcommand and cannot be combined with other options"
+                        .to_string(),
+                );
             }
             other => return Err(format!("unknown option '{other}'")),
         }
     }
 
     Ok(Command::Paste(overrides))
+}
+
+fn parse_update_args(args: &[String]) -> Result<Command, String> {
+    let mut options = UpdateOptions::default();
+    for arg in args {
+        match arg.as_str() {
+            "-c" | "--check" => options.check = true,
+            "-f" | "--force" => options.force = true,
+            "-h" | "--help" => return Ok(Command::UpdateHelp),
+            other => return Err(format!("unknown option '{other}' for 'update'")),
+        }
+    }
+    Ok(Command::Update(options))
 }
 
 fn parse_delay_ms(value: &str) -> Result<u64, String> {
@@ -128,6 +175,11 @@ fn main() {
         }
         Command::Install => setup::install(),
         Command::Uninstall => setup::uninstall(),
+        Command::Update(options) => update::run_update(&options),
+        Command::UpdateHelp => {
+            print!("{}", UPDATE_HELP.replace("{version}", VERSION));
+            Ok(())
+        }
     };
 
     if let Err(error) = result {
@@ -670,5 +722,72 @@ mod tests {
                 .unwrap_err()
                 .contains("cannot be combined")
         );
+        assert!(
+            parse(&["--no-paste", "update"])
+                .unwrap_err()
+                .contains("cannot be combined")
+        );
+        assert!(
+            parse(&["-i", "update"])
+                .unwrap_err()
+                .contains("cannot be combined")
+        );
+    }
+
+    #[test]
+    fn update_subcommand_parses() {
+        assert_eq!(
+            parse(&["update"]),
+            Ok(Command::Update(UpdateOptions {
+                check: false,
+                force: false,
+            }))
+        );
+        assert_eq!(
+            parse(&["update", "--check"]),
+            Ok(Command::Update(UpdateOptions {
+                check: true,
+                force: false,
+            }))
+        );
+        assert_eq!(
+            parse(&["update", "-c"]),
+            Ok(Command::Update(UpdateOptions {
+                check: true,
+                force: false,
+            }))
+        );
+        assert_eq!(
+            parse(&["update", "--force"]),
+            Ok(Command::Update(UpdateOptions {
+                check: false,
+                force: true,
+            }))
+        );
+        assert_eq!(
+            parse(&["update", "-f"]),
+            Ok(Command::Update(UpdateOptions {
+                check: false,
+                force: true,
+            }))
+        );
+        assert_eq!(
+            parse(&["update", "-c", "-f"]),
+            Ok(Command::Update(UpdateOptions {
+                check: true,
+                force: true,
+            }))
+        );
+        assert_eq!(parse(&["update", "-h"]), Ok(Command::UpdateHelp));
+        assert_eq!(parse(&["update", "--help"]), Ok(Command::UpdateHelp));
+        assert_eq!(
+            parse(&["--update"]),
+            Ok(Command::Update(UpdateOptions {
+                check: false,
+                force: false,
+            }))
+        );
+        assert!(parse(&["update", "--unknown"]).is_err());
+        assert!(parse(&["update", "-i"]).is_err());
     }
 }

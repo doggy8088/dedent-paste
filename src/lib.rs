@@ -6,6 +6,7 @@ use std::time::Duration;
 use base64::Engine as _;
 
 pub mod karabiner;
+pub mod update;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DedentError {

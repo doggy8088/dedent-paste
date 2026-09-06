@@ -55,6 +55,29 @@ Both flags are macOS-only and return an error on other platforms. The pure JSON 
 
 Because releases before 0.4.0 ignore command-line arguments and would run the paste flow instead, `install.sh` refuses to call `--install` on a binary that does not contain the help text.
 
+## Self-update behavior (`dedent-paste update`)
+
+`dedent-paste update` allows standalone installations to update themselves to the latest published release.
+
+The update flow:
+
+1. Resolves `current_exe()` and classifies the install method (`update::detect_install_method`):
+   - Homebrew (`Cellar`, `/opt/homebrew/`, `/.linuxbrew/`)
+   - npm (`node_modules`, `/.nvm/`, `/npm/`, `/npm-global/`)
+   - Cargo (`.cargo/bin`)
+   - Local build (`target/debug/`, `target/release/`)
+   - Standalone binary (e.g. `~/.local/bin/dedent-paste`)
+2. Fetches the latest release version from `dist-manifest.json` (downloaded from GitHub Releases; no GitHub API rate limits), with a fallback to the GitHub Releases API.
+3. Compares SemVer versions (`update::is_newer_version`).
+4. If `--check` (or `-c`) is passed: reports whether an update is available along with the recommended command for the detected install method, then exits 0.
+5. If the current version is already up to date and `--force` (or `-f`) is not set: prints that the tool is up to date and exits 0.
+6. If the installation was managed by a package manager (Homebrew, npm, Cargo) or is a local build, returns an actionable error directing the user to use the proper tool or skipping the update.
+7. For standalone installations:
+   - macOS / Linux: downloads the latest `dedent-paste-installer.sh` using `ureq` and pipes it to `sh -s -- --quiet` with `DEDENT_PASTE_INSTALL_DIR` set to the binary's directory and `INSTALLER_NO_MODIFY_PATH=1`. On macOS, it re-runs `--install` on the new binary so Karabiner-Elements rules stay in sync.
+   - Windows: renames the running `.exe` to `.exe.old`, downloads `dedent-paste-installer.ps1`, and invokes PowerShell with `DEDENT_PASTE_INSTALL_DIR` set. If the installer fails, it restores `.exe.old`; if it succeeds, it removes `.exe.old`.
+
+Pure SemVer, manifest parsing, and install-method detection live in `src/update.rs` with unit tests.
+
 ## Karabiner rule
 
 ```json

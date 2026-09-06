@@ -16,8 +16,9 @@ Runtime support:
 
 - `src/lib.rs`: pure dedent logic and unit tests.
 - `src/karabiner.rs`: pure, unit-tested JSON logic for the `--install` / `--uninstall` Karabiner-Elements rule (template from `examples/macos/`, install-path rewriting, rule detection by `shell_command`).
-- `src/main.rs`: command-line parsing (`-h`, `-v`, `-i`, `-u`) plus platform clipboard and paste integrations.
+- `src/main.rs`: command-line parsing (`-h`, `-v`, `-i`, `-u`, `update`) plus platform clipboard and paste integrations.
 - `src/setup.rs`: file-system side of `--install` / `--uninstall` (asset file, `karabiner.json` backup and rewrite, `karabiner_cli` lint); macOS only.
+- `src/update.rs`: self-update logic and install-method detection for `dedent-paste update`.
 - `README.md`: user-facing installation and usage docs, primarily Traditional Chinese.
 - `DEVELOPMENT.md`: build, test, installer, CI/CD, and release notes.
 - `install.sh`: macOS installer; installs the binary and delegates Karabiner configuration to `dedent-paste --install`.

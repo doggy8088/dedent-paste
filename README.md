@@ -101,8 +101,9 @@ $HOME/.local/bin/dedent-paste
 
 不帶參數執行 `dedent-paste` 就是快捷鍵觸發的貼上流程。另外提供下列參數：
 
-| 參數 | 說明 |
+| 子命令 / 參數 | 說明 |
 |---|---|
+| `update` | 檢查並自動更新 `dedent-paste` 至最新版本（支援 `-c`/`--check` 與 `-f`/`--force`） |
 | `-n`, `--no-paste` | 只整理並寫回剪貼簿，不送出 `Command+V` / `Ctrl+V`；由呼叫端自行貼上 |
 | `--paste-delay-ms <毫秒>` | 修飾鍵放開後、送出貼上按鍵前額外等待的毫秒數（預設 `0`） |
 | `-h`, `--help` | 顯示參數說明 |
@@ -110,7 +111,16 @@ $HOME/.local/bin/dedent-paste
 | `-i`, `--install` | 初始化 Karabiner-Elements 設定（僅 macOS） |
 | `-u`, `--uninstall` | 移除 Karabiner-Elements 中的 dedent-paste 規則（僅 macOS） |
 
-`--no-paste` 與 `--paste-delay-ms` 可以同時使用，也可以改用環境變數 `DEDENT_PASTE_NO_PASTE`、`DEDENT_PASTE_PASTE_DELAY_MS`（見〈[環境變數](#環境變數)〉）；命令列參數優先。`-h`、`-v`、`-i`、`-u` 必須單獨使用。
+`--no-paste` 與 `--paste-delay-ms` 可以同時使用，也可以改用環境變數 `DEDENT_PASTE_NO_PASTE`、`DEDENT_PASTE_PASTE_DELAY_MS`（見〈[環境變數](#環境變數)〉）；命令列參數優先。`-h`、`-v`、`-i`、`-u` 與 `update` 必須單獨使用。
+
+`update` 的行為：
+
+1. 檢查目前執行的 `dedent-paste` 安裝方式（獨立二進位檔、Homebrew、npm、Cargo 或本機建置）。
+2. 連線至 GitHub Releases 檢查是否有更新的版本。
+3. 若指定 `--check`（或 `-c`），只顯示是否有更新與建議的更新指令，不進行安裝。
+4. 若為獨立安裝的二進位檔（例如透過官方 shell / PowerShell 安裝腳本安裝到 `$HOME/.local/bin`）：自動下載對應平台的最新版本並原地升級；在 macOS 上更新後會自動重新套用 `--install` 確保 Karabiner-Elements 規則維持最新。
+5. 若為 Homebrew、npm 或 Cargo 安裝，會提示使用對應套件管理器的升級指令（例如 `brew upgrade dedent-paste`、`npm install -g dedent-paste`），避免破壞套件管理器狀態。
+6. 可使用 `--force`（或 `-f`）強制重新安裝最新版本。
 
 `--install` 的行為：
 
