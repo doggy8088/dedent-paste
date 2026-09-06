@@ -4,6 +4,8 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+## 0.4.0
+
 - 新增 Homebrew tap（[doggy8088/homebrew-dedent-paste](https://github.com/doggy8088/homebrew-dedent-paste)），macOS 可透過 `brew install doggy8088/dedent-paste/dedent-paste` 安裝；cargo-dist 發佈流程會自動產生並推送 Homebrew formula，tap 儲存庫以 `homebrew-tap/` 子模組納入本專案。
 - 升級 cargo-dist 至 0.32.0，並在 `Cargo.toml` 補上 `description` 與 `homepage`。
 - 新增命令列參數：`-h`/`--help` 顯示說明、`-v`/`--version` 顯示版本、`-i`/`--install` 初始化 Karabiner-Elements 設定、`-u`/`--uninstall` 移除 Karabiner-Elements 規則。`--install` 以 `examples/macos/paste-dedent-plain-text.json` 為範本，規則路徑改為目前執行檔的實際安裝路徑（Homebrew `Cellar` 路徑會改寫成不含版本的 `opt` 路徑），並以 `shell_command` 是否包含 `dedent-paste` 判斷既有規則，而非規則名稱；修改前會備份 `karabiner.json`。
