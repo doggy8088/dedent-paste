@@ -4,6 +4,13 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+## 0.5.1
+
+- 新增 `update` 子命令與 `--update` 參數：讓獨立安裝的 `dedent-paste` 可直接檢查並原地下載最新發佈版本進行自我更新。
+- 支援 `--check`（`-c`）僅檢查更新而不進行安裝，以及 `--force`（`-f`）強制重新安裝最新版本。
+- 自動識別安裝途徑（Homebrew、npm、Cargo、本機建置或獨立安裝），對套件管理器安裝的使用者主動提供對應的升級指令（例如 `brew upgrade dedent-paste`、`npm install -g dedent-paste`），避免破壞套件管理器狀態。
+- macOS 與 Linux 透過官方 shell 安裝腳本原地升級二進位檔，macOS 更新後自動重新執行 `--install` 確保 Karabiner-Elements 規則維持最新；Windows 透過檔案重命名與 PowerShell 安裝腳本處理執行中檔案鎖定與失敗還原。
+
 ## 0.5.0
 
 - **行為變更**：macOS Karabiner 規則（`examples/macos/paste-dedent-plain-text.json` 與 `dedent-paste --install`）改為只認**左** Option（`left_option`），右 Option 不再被攔截，避免與語音輸入等佈局在右 Option 的工具衝突。習慣按右 Option+V 的使用者請改用左 Option，或依 README 把規則改回 `option`。（#1）
