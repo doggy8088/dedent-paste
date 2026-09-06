@@ -832,8 +832,12 @@ function run(cmd, args = [], options = {}) {
     cwd,
     encoding: "utf8",
     env: process.env,
-    stdio: stream ? "inherit" : "pipe",
+    stdio: stream ? ["inherit", "pipe", "pipe"] : "pipe",
   });
+  if (stream) {
+    if (res.stdout) process.stdout.write(res.stdout);
+    if (res.stderr) process.stderr.write(res.stderr);
+  }
   if (res.error) {
     throw new Error(`${label} 執行失敗：${res.error.message}`);
   }
