@@ -4,6 +4,8 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+## 0.5.0
+
 - **行為變更**：macOS Karabiner 規則（`examples/macos/paste-dedent-plain-text.json` 與 `dedent-paste --install`）改為只認**左** Option（`left_option`），右 Option 不再被攔截，避免與語音輸入等佈局在右 Option 的工具衝突。習慣按右 Option+V 的使用者請改用左 Option，或依 README 把規則改回 `option`。（#1）
 - 新增 `-n`/`--no-paste` 與 `--paste-delay-ms <毫秒>` 參數，以及對應的 `DEDENT_PASTE_NO_PASTE`、`DEDENT_PASTE_PASTE_DELAY_MS` 環境變數：可只整理剪貼簿交由 skhd、Hammerspoon 等工具自行貼上，或在送出貼上前加入延遲。（#1）
 - macOS 送出 `Command+V` 前會先等待 Shift/Control/Option/Command 全部放開（最多 1 秒），修正快捷鍵觸發時實體 Option 仍按住導致應用程式收到 `Command+Option+V`、`osascript` 回傳成功卻沒有貼上的問題。（#1）
