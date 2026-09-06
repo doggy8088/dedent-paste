@@ -4,6 +4,9 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+- 新增 Homebrew tap（[doggy8088/homebrew-dedent-paste](https://github.com/doggy8088/homebrew-dedent-paste)），macOS 可透過 `brew install doggy8088/dedent-paste/dedent-paste` 安裝；cargo-dist 發佈流程會自動產生並推送 Homebrew formula，tap 儲存庫以 `homebrew-tap/` 子模組納入本專案。
+- 升級 cargo-dist 至 0.32.0，並在 `Cargo.toml` 補上 `description` 與 `homepage`。
+
 ## 0.3.2
 
 - 支援辨識 `•` 提示／項目符號格式，移除提示符與續行縮排並展開段落中的視覺換行。

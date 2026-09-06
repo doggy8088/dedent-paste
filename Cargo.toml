@@ -3,6 +3,8 @@ name = "dedent-paste"
 version = "0.3.2"
 edition = "2024"
 authors = ["Will 保哥"]
+description = "Paste clipboard text with common indentation removed"
+homepage = "https://dedent-paste.gh.miniasp.com/"
 license = "MIT"
 repository = "https://github.com/doggy8088/dedent-paste"
 

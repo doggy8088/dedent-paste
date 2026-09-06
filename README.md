@@ -27,6 +27,16 @@ npm install -g dedent-paste
 
 npm 套件會在安裝時從 GitHub Releases 下載符合目前平台的原生執行檔並驗證 SHA-256 checksum。
 
+macOS 也可以透過 Homebrew tap（[doggy8088/homebrew-dedent-paste](https://github.com/doggy8088/homebrew-dedent-paste)）安裝：
+
+```sh
+brew tap doggy8088/dedent-paste
+brew trust doggy8088/dedent-paste
+brew install dedent-paste
+```
+
+Homebrew 6 之後對第三方 tap 需要先執行一次 `brew trust`，較舊版本可略過該行。Homebrew 只會安裝 `dedent-paste` 執行檔（Apple Silicon 位於 `/opt/homebrew/bin/dedent-paste`，Intel 位於 `/usr/local/bin/dedent-paste`），Karabiner-Elements 的 `Option+V` 規則請參考下方〈[macOS](#macos)〉章節，並把規則中的 `shell_command` 路徑改成 Homebrew 的安裝路徑。
+
 > 注意：Windows 預設的 `Win+V` 是「剪貼簿歷程記錄」。如果你使用下面的 AutoHotkey 腳本，這個預設快捷鍵會被覆蓋。
 
 ## macOS
@@ -297,6 +307,7 @@ EnvSet "DEDENT_PASTE_LANG", "zh-TW"
 - [Karabiner complex modifications](https://karabiner-elements.pqrs.org/docs/manual/configuration/configure-complex-modifications/)
 - [AutoHotkey](https://www.autohotkey.com/)
 - [dedent-paste GitHub Releases](https://github.com/doggy8088/dedent-paste/releases)
+- [dedent-paste Homebrew tap](https://github.com/doggy8088/homebrew-dedent-paste)
 - [cargo-dist](https://opensource.axo.dev/cargo-dist/)
 - [macOS 輔助使用權限說明](https://support.apple.com/guide/mac-help/allow-accessibility-apps-to-access-your-mac-mh43185/mac)
 
