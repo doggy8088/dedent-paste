@@ -2,25 +2,17 @@
   "title": "Dedent paste",
   "rules": [
     {
-      "description": "Option+V：執行 dedent-paste",
-      "manipulators": [
-        {
-          "from": {
-            "key_code": "v",
-            "modifiers": {
-              "mandatory": [
-                "option"
-              ]
-            }
-          },
-          "to": [
+        "description": "Option+V：dedent-paste",
+        "manipulators": [
             {
-              "shell_command": "$HOME/.local/bin/dedent-paste"
+                "from": {
+                    "key_code": "v",
+                    "modifiers": { "mandatory": ["option"] }
+                },
+                "to": [{ "shell_command": ". \"$HOME/.config/dedent-paste/env\" 2>/dev/null; exec $HOME/projects/dedent-paste/target/release/dedent-paste" }],
+                "type": "basic"
             }
-          ],
-          "type": "basic"
-        }
-      ]
+        ]
     }
   ]
 }
