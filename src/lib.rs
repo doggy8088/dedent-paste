@@ -170,8 +170,10 @@ fn unwrap_prompt_lines(input: &str) -> String {
         let next_body = lines.get(index + 1).map(|(body, _)| *body);
         let should_join = !newline.is_empty()
             && !is_blank_line(body)
-            && !ends_with_sentence_terminator(body)
-            && next_body.is_some_and(|next| !is_blank_line(next));
+            && next_body.is_some_and(|next| !is_blank_line(next))
+            && (has_unclosed_code_span(body)
+                || (!ends_with_sentence_terminator(body)
+                    && !next_body.is_some_and(starts_with_list_marker)));
 
         if should_join {
             let next_body = next_body.expect("next body exists when joining prompt lines");
@@ -194,8 +196,35 @@ fn ends_with_sentence_terminator(line: &str) -> bool {
 
     matches!(
         last,
-        Some('。' | '．' | '！' | '？' | '…' | '.' | '!' | '?' | '，' | ',')
+        Some('。' | '．' | '！' | '？' | '…' | '：' | '.' | '!' | '?' | ':' | '，' | ',')
     )
+}
+
+// A wrapped line can end inside an inline code span (e.g. "`FOO:" continued
+// by "true`"). Punctuation inside code is not a sentence boundary, so an odd
+// number of backticks means the visual wrap must be joined.
+fn has_unclosed_code_span(line: &str) -> bool {
+    line.chars().filter(|ch| *ch == '`').count() % 2 == 1
+}
+
+// A continuation line that starts a list item ("1. ", "2) ", "- ", "* ")
+// was typed as a new line by the user, not produced by terminal wrapping.
+fn starts_with_list_marker(line: &str) -> bool {
+    let line = line.trim_start_matches(is_inline_space);
+    let digits = line.chars().take_while(|ch| ch.is_ascii_digit()).count();
+    let rest = if digits > 0 {
+        match line[digits..].strip_prefix(['.', ')', '、']) {
+            Some(rest) => rest,
+            None => return false,
+        }
+    } else {
+        match line.strip_prefix(['-', '*', '•']) {
+            Some(rest) => rest,
+            None => return false,
+        }
+    };
+
+    rest.chars().next().is_some_and(is_inline_space)
 }
 
 fn is_closing_wrapper(ch: char) -> bool {
@@ -859,6 +888,54 @@ mod tests {
         let input = "• 我補充一下這次實驗的需求：在我目前的使用環境中，按 Shift 無法在唯音內切換中文與英數，所以我採取的方式是，在偵測到連續誤鍵後，保留並送出原始英數字元，\n  再直接切換至系統的 ABC 輸入來源，讓後續按鍵由 ABC 處理。\n\n  因此，我想達成的行為與留在唯音內持續中英混輸有所不同。不過，這與你提到的程式碼應如何整合是兩個層面的問題。即使最終行為是切換系統輸入來源，前面的判斷\n  與按鍵保留邏輯，仍應評估如何整合至 Typewriter_MixedAlphanumerical.swift；這部分我原先沒有充分考慮。\n\n  目前選用 ABC 是依照我自己的使用習慣。若要納入正式功能，切換目標也應考慮使用者實際使用的英文鍵盤配置，不宜固定假設為 ABC。";
         let expected = "我補充一下這次實驗的需求：在我目前的使用環境中，按 Shift 無法在唯音內切換中文與英數，所以我採取的方式是，在偵測到連續誤鍵後，保留並送出原始英數字元，\n再直接切換至系統的 ABC 輸入來源，讓後續按鍵由 ABC 處理。\n\n因此，我想達成的行為與留在唯音內持續中英混輸有所不同。不過，這與你提到的程式碼應如何整合是兩個層面的問題。即使最終行為是切換系統輸入來源，前面的判斷與按鍵保留邏輯，仍應評估如何整合至 Typewriter_MixedAlphanumerical.swift；這部分我原先沒有充分考慮。\n\n目前選用 ABC 是依照我自己的使用習慣。若要納入正式功能，切換目標也應考慮使用者實際使用的英文鍵盤配置，不宜固定假設為 ABC。";
         assert_eq!(dedent_text(input), expected);
+    }
+
+    #[test]
+    fn keeps_list_items_and_colon_breaks_while_joining_wrapped_code_span() {
+        let input = "❯ 我希望調整一下「歷史紀錄」頁面的功能：\n  1. 我希望重新轉錄時，可以選取目前所有的提示詞，讓使用者有機會可以變更為其他的提示詞設定來重新轉錄。你可以開啟一個新的彈窗讓使用者選\n  擇，要讓轉錄完成後才能回到原本的「歷史轉錄」視窗。\n  2. 聲音重播的播放器，在播放的時候，進度條左側的 `00:00` 時間應該要跟著變動，現在都固定為 `00:00` 是不正確的。\n\n  還有「編輯提示詞」有個 Bug 要修：\n  1. 我在「AI 校正」的「啟用結構化輸出」勾選，套用寫入，提示詞檔案也有看到寫入 `ZEROTYPE_ENABLE_STRUCTURED_OUTPUT:\n  true`，但是我關閉「編輯提示詞」後重開，我從UI上面還是會看到這個「啟用結構化輸出」沒有勾選！\n";
+        let expected = "我希望調整一下「歷史紀錄」頁面的功能：\n1. 我希望重新轉錄時，可以選取目前所有的提示詞，讓使用者有機會可以變更為其他的提示詞設定來重新轉錄。你可以開啟一個新的彈窗讓使用者選擇，要讓轉錄完成後才能回到原本的「歷史轉錄」視窗。\n2. 聲音重播的播放器，在播放的時候，進度條左側的 `00:00` 時間應該要跟著變動，現在都固定為 `00:00` 是不正確的。\n\n還有「編輯提示詞」有個 Bug 要修：\n1. 我在「AI 校正」的「啟用結構化輸出」勾選，套用寫入，提示詞檔案也有看到寫入 `ZEROTYPE_ENABLE_STRUCTURED_OUTPUT: true`，但是我關閉「編輯提示詞」後重開，我從UI上面還是會看到這個「啟用結構化輸出」沒有勾選！\n";
+        assert_eq!(dedent_text(input), expected);
+    }
+
+    #[test]
+    fn preserves_line_breaks_before_list_markers() {
+        assert_eq!(
+            dedent_text("› 清單\n  1. 第一項\n  2. 第二項\n"),
+            "清單\n1. 第一項\n2. 第二項\n"
+        );
+        assert_eq!(
+            dedent_text("› items\n  - alpha\n  * beta\n"),
+            "items\n- alpha\n* beta\n"
+        );
+        assert_eq!(dedent_text("› items\n  1) alpha\n"), "items\n1) alpha\n");
+    }
+
+    #[test]
+    fn joins_lines_that_merely_start_with_digits_or_dashes() {
+        assert_eq!(dedent_text("› 共\n  100 元\n"), "共 100 元\n");
+        assert_eq!(
+            dedent_text("› 版本\n  1.2.3 已釋出\n"),
+            "版本 1.2.3 已釋出\n"
+        );
+        assert_eq!(dedent_text("› use\n  --flag here\n"), "use --flag here\n");
+    }
+
+    #[test]
+    fn preserves_line_breaks_after_colon() {
+        assert_eq!(dedent_text("› 說明：\n  內容\n"), "說明：\n內容\n");
+        assert_eq!(dedent_text("› note:\n  content\n"), "note:\ncontent\n");
+    }
+
+    #[test]
+    fn joins_wrapped_lines_inside_unclosed_code_span() {
+        assert_eq!(
+            dedent_text("› set `KEY:\n  value` now.\n"),
+            "set `KEY: value` now.\n"
+        );
+        assert_eq!(
+            dedent_text("› 設定 `KEY。\n  1. 不是清單`\n"),
+            "設定 `KEY。 1. 不是清單`\n"
+        );
     }
 
     #[test]
