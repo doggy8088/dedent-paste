@@ -29,6 +29,7 @@ enum PromptMode {
 }
 
 pub fn dedent_text(input: &str) -> String {
+    let should_remove_trailing_newlines = has_single_text_line_with_trailing_newline(input);
     let (stripped_prompt, mode) = strip_prompt_prefix(input);
     let input = stripped_prompt.as_deref().unwrap_or(input);
 
@@ -44,8 +45,14 @@ pub fn dedent_text(input: &str) -> String {
         .map(|line| dedent_line(line, min_indent))
         .collect();
 
-    if matches!(mode, Some(PromptMode::Unwrap)) {
+    let dedented = if matches!(mode, Some(PromptMode::Unwrap)) {
         unwrap_prompt_lines(&dedented)
+    } else {
+        dedented
+    };
+
+    if should_remove_trailing_newlines {
+        strip_trailing_newlines(&dedented).to_owned()
     } else {
         dedented
     }
@@ -267,6 +274,24 @@ fn split_trailing_newline(line: &str) -> (&str, &str) {
         (body, "\n")
     } else {
         (line, "")
+    }
+}
+
+fn has_single_text_line_with_trailing_newline(input: &str) -> bool {
+    let body = strip_trailing_newlines(input);
+
+    body.len() < input.len() && !body.is_empty() && !body.contains('\n') && !is_blank_line(body)
+}
+
+fn strip_trailing_newlines(mut input: &str) -> &str {
+    loop {
+        if let Some(stripped) = input.strip_suffix("\r\n") {
+            input = stripped;
+        } else if let Some(stripped) = input.strip_suffix('\n') {
+            input = stripped;
+        } else {
+            return input;
+        }
     }
 }
 
@@ -766,6 +791,18 @@ mod tests {
     #[test]
     fn preserves_missing_trailing_newline() {
         assert_eq!(dedent_text("  alpha\n    beta"), "alpha\n  beta");
+    }
+
+    #[test]
+    fn removes_trailing_newlines_from_single_line_text() {
+        assert_eq!(dedent_text("生成摘要\n"), "生成摘要");
+        assert_eq!(dedent_text("  生成摘要\r\n\r\n"), "生成摘要");
+        assert_eq!(dedent_text("› 生成摘要\n"), "生成摘要");
+    }
+
+    #[test]
+    fn preserves_trailing_newlines_for_multiple_lines() {
+        assert_eq!(dedent_text("第一行\n第二行\n\n"), "第一行\n第二行\n\n");
     }
 
     #[test]
