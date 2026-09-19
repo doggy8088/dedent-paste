@@ -4,6 +4,8 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+## 0.5.4
+
 - 修正提示格式（`❯`、`›`、`•`）下，行尾為反斜線（`\`）的續行被誤判為視覺換行而接續成同一行的問題：行尾反斜線代表使用者刻意輸入的續行（例如多行 shell 指令），現在會強制保留該換行，不與下一行接合。
 
 ## 0.5.3
