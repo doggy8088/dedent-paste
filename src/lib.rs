@@ -178,6 +178,7 @@ fn unwrap_prompt_lines(input: &str) -> String {
         let should_join = !newline.is_empty()
             && !is_blank_line(body)
             && next_body.is_some_and(|next| !is_blank_line(next))
+            && !has_trailing_line_continuation(body)
             && (has_unclosed_code_span(body)
                 || (!ends_with_sentence_terminator(body)
                     && !next_body.is_some_and(starts_with_list_marker)));
@@ -212,6 +213,13 @@ fn ends_with_sentence_terminator(line: &str) -> bool {
 // number of backticks means the visual wrap must be joined.
 fn has_unclosed_code_span(line: &str) -> bool {
     line.chars().filter(|ch| *ch == '`').count() % 2 == 1
+}
+
+// A trailing backslash is a line continuation the user typed on purpose (for
+// example a multi-line shell command), not a visual wrap produced by the
+// terminal width, so the line break must survive unwrapping.
+fn has_trailing_line_continuation(line: &str) -> bool {
+    line.trim_end_matches(is_inline_space).ends_with('\\')
 }
 
 // A continuation line that starts a list item ("1. ", "2) ", "- ", "* ")
@@ -972,6 +980,25 @@ mod tests {
         assert_eq!(
             dedent_text("› 設定 `KEY。\n  1. 不是清單`\n"),
             "設定 `KEY。 1. 不是清單`\n"
+        );
+    }
+
+    #[test]
+    fn preserves_line_breaks_after_trailing_backslash() {
+        let input = "❯ mcode provider add --name LLMShare --base-url https://llm-share.duotify.com/v1 \\\n  --api-format openai-responses --model deepseek-v4.1-flash \\\n  --api-key-env MCODE_PROVIDER_API_KEY --use";
+        let expected = "mcode provider add --name LLMShare --base-url https://llm-share.duotify.com/v1 \\\n--api-format openai-responses --model deepseek-v4.1-flash \\\n--api-key-env MCODE_PROVIDER_API_KEY --use";
+
+        assert_eq!(dedent_text(input), expected);
+    }
+
+    #[test]
+    fn keeps_line_breaks_after_trailing_backslash_with_spaces_or_blockquote() {
+        assert_eq!(dedent_text("❯ cmd --a \\  \n  --b\n"), "cmd --a \\\n--b\n");
+        assert_eq!(dedent_text("> cmd --a \\\n  --b\n"), "cmd --a \\\n--b\n");
+        assert_eq!(
+            dedent_text("cmd --a \\\n  --b\n"),
+            "cmd --a \\\n  --b\n",
+            "text without a prompt prefix keeps its own indentation"
         );
     }
 
