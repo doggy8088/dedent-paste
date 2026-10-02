@@ -4,6 +4,15 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+## 0.6.0
+
+- Windows 新增 `--install`／`--uninstall` 自動管理 AutoHotkey 快捷鍵：安裝後立即啟用 `Win+V`，並建立目前使用者的登入啟動捷徑；移除時停止受管理腳本並清除其腳本與捷徑。
+- 自動偵測 AutoHotkey v2 與 v1.1 Unicode 版，兩者皆存在時優先選用 v2；依偵測版本產生 UTF-8 腳本，直接指定目前 dedent-paste 與直譯器的完整路徑，不依賴 `.ahk` 檔案關聯。
+- 重新安裝時更新路徑並重新啟動受管理腳本；修改或移除前備份既有腳本，拒絕覆寫無關設定，失敗時嘗試還原先前檔案與執行中的直譯器，並明確回報不完整復原。
+- 修正 Windows 中文路徑的啟動捷徑建立與讀取，改用 Unicode `IShellLinkW`／`IPersistFile` 介面，通過包含中文、單引號與空白目錄的 Windows 回歸測試。
+- 修正 AutoHotkey v1／v2 範例的使用者目錄取得方式與 v2 命令引號語法，並更新 README、網站及開發文件的 Windows 安裝與維護說明。
+- CI 與版本發布驗證流程升級至 `actions/checkout@v6`，消除 Node.js 20 淘汰警告；Ubuntu 工作固定使用 `ubuntu-24.04`，避免自動遷移主要版本。
+
 ## 0.5.4
 
 - 修正提示格式（`❯`、`›`、`•`）下，行尾為反斜線（`\`）的續行被誤判為視覺換行而接續成同一行的問題：行尾反斜線代表使用者刻意輸入的續行（例如多行 shell 指令），現在會強制保留該換行，不與下一行接合。

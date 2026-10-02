@@ -1,6 +1,6 @@
 [package]
 name = "dedent-paste"
-version = "0.5.4"
+version = "0.6.0"
 edition = "2024"
 authors = ["Will 保哥"]
 description = "Paste clipboard text with common indentation removed"
