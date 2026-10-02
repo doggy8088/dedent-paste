@@ -1,11 +1,17 @@
-//! `--install` / `--uninstall`: file-system side of the Karabiner-Elements
-//! integration. The JSON manipulation itself lives in `dedent_paste::karabiner`
-//! so it can be unit tested without touching the user's configuration.
+//! Platform hotkey setup. Windows lifecycle and rendering are testable without
+//! a desktop; Karabiner JSON manipulation lives in `dedent_paste::karabiner`.
+
+#[cfg(any(target_os = "windows", test))]
+mod autohotkey;
+#[cfg(target_os = "windows")]
+mod windows;
+#[cfg(target_os = "windows")]
+pub use windows::{install, uninstall};
 
 #[cfg(target_os = "macos")]
 pub use macos::{install, uninstall};
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
 pub use unsupported::{install, uninstall};
 
 #[cfg(target_os = "macos")]
@@ -252,12 +258,12 @@ mod macos {
     }
 }
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
 mod unsupported {
     use std::error::Error;
 
-    const MESSAGE: &str = "--install and --uninstall manage Karabiner-Elements and are only available on macOS.\n\
-        On Windows, bind Win+V with AutoHotkey; see https://github.com/doggy8088/dedent-paste#windows";
+    const MESSAGE: &str =
+        "--install and --uninstall require macOS (Karabiner-Elements) or Windows (AutoHotkey).";
 
     pub fn install() -> Result<(), Box<dyn Error>> {
         Err(MESSAGE.into())

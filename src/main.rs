@@ -49,8 +49,13 @@ Other options (exclusive):
   -i, --install      Register the Left Option+V rule in Karabiner-Elements (macOS).
                      The rule points at this executable. Existing dedent-paste
                      rules are replaced and karabiner.json is backed up first.
+                     On Windows, enable Win+V now and at login using AutoHotkey
+                     v2 or v1.1 (prefers v2). Install AutoHotkey separately first.
+                     Only the managed script is replaced, with a backup.
   -u, --uninstall    Remove every dedent-paste rule from Karabiner-Elements (macOS)
                      and delete the imported complex-modification asset.
+                     On Windows, stop and back up the managed AutoHotkey script,
+                     then remove it and its login shortcut. Keep other scripts.
   -v, --version      Print the version and exit.
   -h, --help         Print this help and exit.
 

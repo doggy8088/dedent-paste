@@ -109,8 +109,8 @@ $HOME/.local/bin/dedent-paste
 | `--paste-delay-ms <毫秒>` | 修飾鍵放開後、送出貼上按鍵前額外等待的毫秒數（預設 `0`） |
 | `-h`, `--help` | 顯示參數說明 |
 | `-v`, `--version` | 顯示目前版本號 |
-| `-i`, `--install` | 初始化 Karabiner-Elements 設定（僅 macOS） |
-| `-u`, `--uninstall` | 移除 Karabiner-Elements 中的 dedent-paste 規則（僅 macOS） |
+| `-i`, `--install` | macOS：初始化 Karabiner-Elements；Windows：設定 AutoHotkey，立即啟用 `Win+V` 並於登入時自動啟動 |
+| `-u`, `--uninstall` | macOS：移除 Karabiner-Elements 規則；Windows：停止並移除受管理的 AutoHotkey 腳本與啟動捷徑 |
 
 `--no-paste` 與 `--paste-delay-ms` 可以同時使用，也可以改用環境變數 `DEDENT_PASTE_NO_PASTE`、`DEDENT_PASTE_PASTE_DELAY_MS`（見〈[環境變數](#環境變數)〉）；命令列參數優先。`-h`、`-v`、`-i`、`-u` 與 `update` 必須單獨使用。
 
@@ -123,7 +123,7 @@ $HOME/.local/bin/dedent-paste
 5. 若為 Homebrew、npm 或 Cargo 安裝，會提示使用對應套件管理器的升級指令（例如 `brew upgrade dedent-paste`、`npm install -g dedent-paste`），避免破壞套件管理器狀態。
 6. 可使用 `--force`（或 `-f`）強制重新安裝最新版本。
 
-`--install` 的行為：
+macOS 上 `--install` 的行為（Windows 請見〈[自動設定 Win+V](#自動設定-winv)〉）：
 
 1. 以 [`examples/macos/paste-dedent-plain-text.json`](examples/macos/paste-dedent-plain-text.json) 為範本，把規則中的執行路徑改成**目前執行的這個 `dedent-paste` 的實際安裝路徑**（例如 Homebrew 的 `/opt/homebrew/bin/dedent-paste`、npm 的安裝目錄或 `$HOME/.local/bin/dedent-paste`）。若路徑位於 Homebrew 的 `Cellar/<版本>/` 目錄，會改寫成不含版本號的 `opt/dedent-paste/bin/dedent-paste`，以免 `brew upgrade` 之後失效。
 2. 把範本寫到 `~/.config/karabiner/assets/complex_modifications/paste-dedent-plain-text.json`，方便在 Karabiner-Elements 介面中手動匯入。
@@ -155,7 +155,7 @@ lalt - v : ~/.local/bin/dedent-paste --no-paste && skhd -k "cmd - v"
 
 ### 安裝
 
-需求：Windows 10/11、PowerShell 5.1 或更新版本；若要綁定快捷鍵，請另外安裝 AutoHotkey。
+需求：Windows 10/11、PowerShell 5.1 或更新版本；若要綁定快捷鍵，請另外安裝 AutoHotkey v2 或 v1.1（Unicode 版）。
 
 Release 頁面除了壓縮檔之外，也有 cargo-dist 產生的 PowerShell 安裝器 [`dedent-paste-installer.ps1`](https://github.com/doggy8088/dedent-paste/releases/latest/download/dedent-paste-installer.ps1)。可以直接執行：
 
@@ -182,6 +182,36 @@ $HOME/.local/bin/dedent-paste.exe
 
 ### 設定
 
+#### 自動設定 Win+V
+
+先安裝 [AutoHotkey](https://www.autohotkey.com/)，再執行：
+
+```powershell
+dedent-paste --install
+```
+
+若 `PATH` 尚未更新，可直接執行 `& "$HOME\.local\bin\dedent-paste.exe" --install`。不需要系統管理員權限。
+
+安裝程式會偵測 AutoHotkey v2 與 v1.1，兩者皆有時優先使用 v2；找不到時會提示安裝，不會自行下載。可偵測登錄的安裝位置、標準安裝目錄及 `PATH` 中的執行檔；可攜版請先將 AutoHotkey 執行檔所在目錄加入 `PATH`。
+
+- 將對應版本的腳本寫入 `%LOCALAPPDATA%\dedent-paste\dedent-paste-win-v.ahk`，指向**目前執行的 dedent-paste 執行檔**。
+- 在目前使用者的「啟動」資料夾建立 `dedent-paste.lnk`，直接指定偵測到的 AutoHotkey 執行檔，不依賴 `.ahk` 檔案關聯。
+- 立即啟動腳本，讓 `Win+V` 生效，並於每次登入 Windows 時自動啟動。
+
+`Win+V` 會取代 Windows 的剪貼簿歷程記錄快捷鍵。若先前已手動執行其他 `Win+V` 腳本，請自行停止並移除它的自動啟動設定，避免快捷鍵衝突。
+
+再次執行 `--install` 會更新腳本與執行檔路徑。受管理的腳本若有變更，會先在同目錄建立 `.bak-<時間戳記>-<序號>` 備份，再替換並重新啟動；自行修改的內容也會保留在備份中。若固定位置已有非受管理的腳本或無關捷徑，安裝程式會停止並提示移開檔案，不會覆寫。更換 dedent-paste 或 AutoHotkey 的安裝位置後，請重新執行 `--install`。
+
+移除快捷鍵設定：
+
+```powershell
+dedent-paste --uninstall
+```
+
+這會停止受管理的腳本，備份後移除腳本與登入啟動捷徑；保留備份、dedent-paste 執行檔、AutoHotkey 及其他腳本。即使已移除 AutoHotkey，也能清除設定。安裝失敗時會嘗試還原原本的設定；若無法完整還原，錯誤訊息會列出需要處理的項目。
+
+以下為手動設定方式；已使用 `--install` 時不必再建立另一份腳本。
+
 #### PATH 環境變數
 
 PowerShell 安裝器通常會嘗試把 `$HOME/.local/bin` 加進 `PATH`，這樣你可以在新的 Terminal / PowerShell 視窗直接輸入 `dedent-paste.exe`。
@@ -194,7 +224,7 @@ PowerShell 安裝器通常會嘗試把 `$HOME/.local/bin` 加進 `PATH`，這樣
 不過如果你是透過 AutoHotkey 來觸發 `dedent-paste`，**建議直接在腳本中寫固定路徑**，不要依賴 `PATH`。這樣最不容易因為 PATH 尚未刷新而失敗。以下範例都直接使用：
 
 ```text
-A_Home "\.local\bin\dedent-paste.exe"
+%USERPROFILE%\.local\bin\dedent-paste.exe
 ```
 
 如果你已經確認 `PATH` 生效，也可以把腳本裡的完整路徑改成單純的 `dedent-paste.exe`。
@@ -207,7 +237,7 @@ A_Home "\.local\bin\dedent-paste.exe"
 #Requires AutoHotkey v2.0
 #SingleInstance Force
 
-dedentPaste := A_Home "\.local\bin\dedent-paste.exe"
+dedentPaste := EnvGet("USERPROFILE") "\.local\bin\dedent-paste.exe"
 
 #v::{
     global dedentPaste
@@ -221,7 +251,7 @@ dedentPaste := A_Home "\.local\bin\dedent-paste.exe"
     }
 
     ; 執行失敗時 dedent-paste 會自行顯示錯誤對話方塊，這裡不再重複提示。
-    try RunWait Format("""{1}""", dedentPaste),, "Hide"
+    try RunWait Format('"{1}"', dedentPaste),, "Hide"
     catch Error as err {
         MsgBox "啟動 dedent-paste 失敗。`n`n" err.Message, "dedent-paste", "Iconx"
         return
@@ -239,7 +269,8 @@ dedentPaste := A_Home "\.local\bin\dedent-paste.exe"
 SendMode Input
 SetWorkingDir %A_ScriptDir%
 
-dedentPaste := A_Home . "\.local\bin\dedent-paste.exe"
+EnvGet, userProfile, USERPROFILE
+dedentPaste := userProfile . "\.local\bin\dedent-paste.exe"
 
 #v::
     KeyWait, LWin

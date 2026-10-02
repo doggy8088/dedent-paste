@@ -850,8 +850,10 @@
               Homebrew installs the binary only; <code>dedent-paste --install</code> adds the Left Option+V rule to
               Karabiner-Elements. The shell installer does both in one go. Also on
               <a href="https://www.npmjs.com/package/dedent-paste">npm</a> as <code>npm install -g dedent-paste</code>.
-              For AutoHotkey, prefer the fixed path <code>%USERPROFILE%\.local\bin\dedent-paste.exe</code>
-              instead of waiting for PATH changes to refresh.
+              On Windows, install <a href="https://www.autohotkey.com/download/ahk-v2.exe">AutoHotkey v2</a> or
+              <a href="https://www.autohotkey.com/download/ahk-install.exe">v1.1 (Unicode)</a>, then run <code>dedent-paste --install</code>
+              to enable Win+V now and at login. If PATH has not refreshed after the PowerShell installer, run
+              <code>&amp; "$HOME\.local\bin\dedent-paste.exe" --install</code> in PowerShell.
             </p>
           </div>
 
@@ -960,12 +962,14 @@
         <article class="feature">
           <span class="feature-index">Windows</span>
           <strong>PowerShell + AutoHotkey</strong>
-          <p>Run the PowerShell installer, then bind <code>Win+V</code> with AutoHotkey v1 or v2. Want clipboard history too? Remap it to <code>Alt+V</code> or another key.</p>
+          <p>Run the PowerShell installer and install <a href="https://www.autohotkey.com/download/ahk-v2.exe">AutoHotkey v2</a> or <a href="https://www.autohotkey.com/download/ahk-install.exe">v1.1 (Unicode)</a>, then run <code>dedent-paste --install</code>. It prefers v2, creates a dedicated script, and enables <code>Win+V</code> immediately and at login for the current user. No administrator rights are needed. AutoHotkey must be installed separately.</p>
+          <p><code>Win+V</code> replaces Windows clipboard history. Stop any older Win+V scripts yourself to avoid conflicts. For a different shortcut, use the <a href="https://github.com/doggy8088/dedent-paste#windows">manual AutoHotkey setup</a>.</p>
         </article>
         <article class="feature">
-          <span class="feature-index">PATH</span>
-          <strong>Prefer fixed paths for hotkeys</strong>
-          <p>Installers can update PATH, but shortcut tools are more reliable when they launch the installed binary directly.</p>
+          <span class="feature-index">Windows / Maintain</span>
+          <strong>Refresh or remove the hotkey</strong>
+          <p>The managed script uses this executable's full path. Rerun <code>dedent-paste --install</code> after moving dedent-paste or AutoHotkey. Existing managed scripts are backed up before changes; unrelated scripts and startup shortcuts are left alone.</p>
+          <p><code>dedent-paste --uninstall</code> stops and backs up the managed script, then removes it and its login shortcut. Your backups, other scripts, and both installed programs are kept.</p>
         </article>
       </section>
 
@@ -981,7 +985,7 @@
         <article class="feature">
           <span class="feature-index">01 / Shortcut</span>
           <strong>One key chord</strong>
-          <p>Karabiner-Elements maps <code>Left Option+V</code> on macOS, leaving the right Option for other tools. AutoHotkey can map <code>Win+V</code> on Windows, or another shortcut if you want to keep clipboard history.</p>
+          <p><code>dedent-paste --install</code> sets up <code>Left Option+V</code> through Karabiner-Elements on macOS, leaving the right Option for other tools, or <code>Win+V</code> through AutoHotkey on Windows. Use manual AutoHotkey setup for a different shortcut.</p>
         </article>
         <article class="feature">
           <span class="feature-index">02 / Release</span>
@@ -1029,8 +1033,10 @@
           <strong>AutoHotkey: user variables</strong>
           <p>
             AutoHotkey inherits user environment variables: run <code>setx GEMINI_API_KEY "your-key"</code>, then
-            restart the .ahk script. Prefer to keep it scoped? Call <code>EnvSet</code> inside the script before
-            <code>RunWait</code>. Full details in the <a href="https://github.com/doggy8088/dedent-paste/blob/main/README.md">README</a>.
+            start a fresh terminal session and rerun <code>dedent-paste --install</code> to restart the managed script
+            with the new variables. For manual scripts, restart them from the fresh session or call <code>EnvSet</code>
+            before <code>RunWait</code>. Reinstalling backs up and replaces edits to the managed script.
+            Full details in the <a href="https://github.com/doggy8088/dedent-paste/blob/main/README.md">README</a>.
           </p>
         </article>
       </section>
@@ -1052,7 +1058,7 @@
           <p class="footer-copy">
             dedent-paste only changes the clipboard text for the special shortcut you wire up: <code>Left Option+V</code> via
             Karabiner-Elements on macOS, or <code>Win+V</code> via AutoHotkey on Windows. Keep the original source when exact
-            indentation matters, and remap the Windows hotkey if you want to keep the built-in clipboard history shortcut.
+            indentation matters, and use manual AutoHotkey setup for another key if you want to keep the built-in clipboard history shortcut.
           </p>
         </div>
         <div class="footer-links" aria-label="Project links">

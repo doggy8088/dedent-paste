@@ -3,7 +3,8 @@
 SendMode Input
 SetWorkingDir %A_ScriptDir%
 
-dedentPaste := A_Home . "\.local\bin\dedent-paste.exe"
+EnvGet, userProfile, USERPROFILE
+dedentPaste := userProfile . "\.local\bin\dedent-paste.exe"
 
 ; Win+V：執行 dedent-paste。
 ; 注意：這會覆蓋 Windows 內建的剪貼簿歷程記錄快捷鍵。

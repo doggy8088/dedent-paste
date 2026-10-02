@@ -30,7 +30,7 @@ cargo build --release --locked
 
 `install.sh` installs (or builds) the binary and then runs `dedent-paste --install`, so the Karabiner-Elements logic lives in one place for every install channel (installer script, Homebrew, npm). Python 3 is no longer required.
 
-`dedent-paste --install`:
+On macOS, `dedent-paste --install`:
 
 1. Determines its own path with `std::env::current_exe()`, keeping the invoked path (for Homebrew this is the stable `bin/` symlink) and rewriting `Cellar/<formula>/<version>/` paths to the version-independent `opt/<formula>/` path (`karabiner::stable_binary_path`).
 2. Builds the rule from `examples/macos/paste-dedent-plain-text.json`, which is embedded at compile time with `include_str!`, and rewrites every `shell_command` to point at that path. Paths with unsafe characters are single-quoted.
@@ -51,9 +51,23 @@ cargo build --release --locked
 
 `dedent-paste --uninstall` removes matching rules from every profile (with the same backup) and deletes the asset file.
 
-Both flags are macOS-only and return an error on other platforms. The pure JSON manipulation is in `src/karabiner.rs` and is unit tested; file-system access is in `src/setup.rs`.
+The pure JSON manipulation is in `src/karabiner.rs` and is unit tested; macOS file-system access is in `src/setup.rs`. Both setup flags also support Windows; other platforms return an unsupported-platform error.
 
 Because releases before 0.4.0 ignore command-line arguments and would run the paste flow instead, `install.sh` refuses to call `--install` on a binary that does not contain the help text.
+
+### Windows AutoHotkey setup
+
+`dedent-paste --install` requires an existing AutoHotkey v2 or v1.1 Unicode interpreter, preferring v2. Discovery checks both registry views under HKCU/HKLM, standard user/system installation folders (including versioned subdirectories), and PATH. Executable version metadata determines the script version; file associations are not used. AutoHotkey is never downloaded automatically.
+
+The Windows backend (`src/setup/windows.rs` and its embedded PowerShell helper) uses Windows PowerShell 5.1 for registry/version discovery, Windows known-folder resolution, and WScript.Shell startup shortcuts. Paths are passed as environment data to an encoded command, not interpolated into PowerShell source. Native Windows APIs identify the running script by its full path and AutoHotkey window class; stopping it uses WM_CLOSE with a timeout and never kills unrelated AutoHotkey processes.
+
+The script is rendered from the matching `examples/windows/` file, with an ownership header, UTF-8 BOM, and the current executable's absolute path. It is saved at `%LOCALAPPDATA%\dedent-paste\dedent-paste-win-v.ahk`. A `dedent-paste.lnk` shortcut in the current user's Startup known folder points directly to the selected interpreter. Setup also starts the script immediately and verifies its window and process. Run setup without elevation.
+
+The shared lifecycle in `src/setup/autohotkey.rs` validates ownership before modifications, backs up changed scripts as `.bak-<timestamp>-<counter>`, and restores previous files and the previously running interpreter on failure. Reinstall refreshes the paths and restarts the managed instance. A Windows file-sharing lock serializes setup operations; its `setup.lock` file may remain after uninstall. Uninstall needs no interpreter installation: it stops the managed instance, backs up and removes its script, and removes the owned shortcut. Missing resources are harmless; unrelated files and scripts are preserved.
+
+Package installers and Windows self-update do not invoke setup automatically. Rerun `--install` after moving either executable or to refresh the generated integration.
+
+Lifecycle tests use temporary directories and an injected desktop implementation, so ordinary `cargo test --locked` needs neither AutoHotkey nor a GUI. The existing Windows CI job compiles the native backend. For Windows manual acceptance, test v1-only, v2-only, and both installed: Win+V immediately, login startup, reinstall without duplicate instances, missing-interpreter instructions, and uninstall while an unrelated script continues running. Include paths with spaces and non-ASCII characters and verify customized managed scripts survive in backups.
 
 ## Self-update behavior (`dedent-paste update`)
 
