@@ -131,7 +131,9 @@ Windows and other platforms implement `wait_for_modifiers_released` and `try_loc
 
 ## CI/CD
 
-GitHub Actions runs CI on every push to `main` and every pull request.
+GitHub Actions runs CI on every push to `main` and every pull request, using `ubuntu-24.04` and `windows-latest`. The Ubuntu version is pinned to avoid automatic major-version migrations. Checkout uses `actions/checkout@v6` with the Node.js 24 runtime.
+
+The version-release validation and dispatch jobs use the same pinned Ubuntu image and checkout action.
 
 The CI workflow:
 
