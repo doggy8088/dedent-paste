@@ -2,6 +2,73 @@
 $ErrorActionPreference = 'Stop'
 [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false)
 
+# WScript.Shell uses ANSI paths for shortcut persistence. Use the Unicode
+# ShellLink interface and IPersistFile for both loading and saving instead.
+if ($env:DEDENT_PASTE_SETUP_ACTION -in @('validate-shortcut', 'create-shortcut')) {
+    Add-Type -TypeDefinition @'
+using System;
+using System.IO;
+using System.Text;
+using System.Runtime.InteropServices;
+using System.Runtime.InteropServices.ComTypes;
+
+[ComImport, Guid("00021401-0000-0000-C000-000000000046")]
+class ShellLink {}
+
+// Declaration order must match the native IShellLinkW vtable.
+[ComImport, Guid("000214F9-0000-0000-C000-000000000046"),
+ InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+interface IShellLinkW {
+    void GetPath([Out, MarshalAs(UnmanagedType.LPWStr)] StringBuilder path, int size, IntPtr data, uint flags);
+    void GetIDList(out IntPtr id);
+    void SetIDList(IntPtr id);
+    void GetDescription([Out, MarshalAs(UnmanagedType.LPWStr)] StringBuilder text, int size);
+    void SetDescription([MarshalAs(UnmanagedType.LPWStr)] string text);
+    void GetWorkingDirectory([Out, MarshalAs(UnmanagedType.LPWStr)] StringBuilder path, int size);
+    void SetWorkingDirectory([MarshalAs(UnmanagedType.LPWStr)] string path);
+    void GetArguments([Out, MarshalAs(UnmanagedType.LPWStr)] StringBuilder text, int size);
+    void SetArguments([MarshalAs(UnmanagedType.LPWStr)] string text);
+    void GetHotkey(out short key);
+    void SetHotkey(short key);
+    void GetShowCmd(out int command);
+    void SetShowCmd(int command);
+    void GetIconLocation([Out, MarshalAs(UnmanagedType.LPWStr)] StringBuilder path, int size, out int index);
+    void SetIconLocation([MarshalAs(UnmanagedType.LPWStr)] string path, int index);
+    void SetRelativePath([MarshalAs(UnmanagedType.LPWStr)] string path, uint reserved);
+    void Resolve(IntPtr window, uint flags);
+    void SetPath([MarshalAs(UnmanagedType.LPWStr)] string path);
+}
+
+public static class DedentPasteShortcut {
+    public static void Create(string path, string target, string script, string description) {
+        var instance = new ShellLink();
+        try {
+            var link = (IShellLinkW)instance;
+            link.SetPath(target);
+            link.SetArguments("\"" + script + "\"");
+            link.SetWorkingDirectory(Path.GetDirectoryName(script));
+            link.SetDescription(description);
+            ((IPersistFile)instance).Save(path, true);
+        } finally { Marshal.FinalReleaseComObject(instance); }
+    }
+
+    public static bool IsOwned(string path, string script, string description) {
+        var instance = new ShellLink();
+        try {
+            ((IPersistFile)instance).Load(path, 0);
+            var link = (IShellLinkW)instance;
+            var text = new StringBuilder(32768);
+            link.GetDescription(text, text.Capacity);
+            if (!String.Equals(text.ToString(), description, StringComparison.Ordinal)) return false;
+            text.Clear();
+            link.GetArguments(text, text.Capacity);
+            return String.Equals(text.ToString(), "\"" + script + "\"", StringComparison.OrdinalIgnoreCase);
+        } finally { Marshal.FinalReleaseComObject(instance); }
+    }
+}
+'@
+}
+
 switch ($env:DEDENT_PASTE_SETUP_ACTION) {
     'paths' {
         $local = [Environment]::GetFolderPath('LocalApplicationData')
@@ -61,22 +128,20 @@ switch ($env:DEDENT_PASTE_SETUP_ACTION) {
     }
     'validate-shortcut' {
         if (Test-Path -LiteralPath $env:DEDENT_PASTE_SETUP_SHORTCUT) {
-            $shell = New-Object -ComObject WScript.Shell
-            $link = $shell.CreateShortcut($env:DEDENT_PASTE_SETUP_SHORTCUT)
-            $arguments = '"' + $env:DEDENT_PASTE_SETUP_SCRIPT + '"'
-            if ($link.Description -cne $env:DEDENT_PASTE_SETUP_DESCRIPTION -or $link.Arguments -ine $arguments) {
+            if (![DedentPasteShortcut]::IsOwned(
+                $env:DEDENT_PASTE_SETUP_SHORTCUT,
+                $env:DEDENT_PASTE_SETUP_SCRIPT,
+                $env:DEDENT_PASTE_SETUP_DESCRIPTION)) {
                 throw "Unrelated startup shortcut at $env:DEDENT_PASTE_SETUP_SHORTCUT. Move it aside before running setup."
             }
         }
     }
     'create-shortcut' {
-        $shell = New-Object -ComObject WScript.Shell
-        $link = $shell.CreateShortcut($env:DEDENT_PASTE_SETUP_SHORTCUT)
-        $link.TargetPath = $env:DEDENT_PASTE_SETUP_INTERPRETER
-        $link.Arguments = '"' + $env:DEDENT_PASTE_SETUP_SCRIPT + '"'
-        $link.WorkingDirectory = [IO.Path]::GetDirectoryName($env:DEDENT_PASTE_SETUP_SCRIPT)
-        $link.Description = $env:DEDENT_PASTE_SETUP_DESCRIPTION
-        $link.Save()
+        [DedentPasteShortcut]::Create(
+            $env:DEDENT_PASTE_SETUP_SHORTCUT,
+            $env:DEDENT_PASTE_SETUP_INTERPRETER,
+            $env:DEDENT_PASTE_SETUP_SCRIPT,
+            $env:DEDENT_PASTE_SETUP_DESCRIPTION)
     }
     default { throw 'Unknown setup operation.' }
 }
