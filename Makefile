@@ -1,12 +1,15 @@
-.PHONY: build build-locked release test test-rust test-npm fmt fmt-check check ci install clean
+.PHONY: build build-debug build-locked release test test-rust test-npm fmt fmt-check check ci install clean
+
+# Optimized release build (default)
+build:
+	cargo build --release --locked
 
 # Debug build
-build:
+build-debug:
 	cargo build
 
-# Optimized release build
-release:
-	cargo build --release --locked
+# Alias for `build`
+release: build
 
 # Run all tests (Rust unit tests + npm postinstall tests)
 test: test-rust test-npm
