@@ -169,7 +169,9 @@ fn main() {
     };
 
     let result = match command {
-        Command::Paste(overrides) => run(overrides),
+        Command::Paste(overrides) => run(overrides).inspect_err(|error| {
+            log_line("error", &error.to_string());
+        }),
         Command::Help => {
             print!("{}", HELP.replace("{version}", VERSION));
             Ok(())
@@ -215,10 +217,31 @@ fn run(overrides: PasteCliOverrides) -> Result<(), Box<dyn Error>> {
             let dedented = dedent_text(&text);
 
             platform::write_clipboard(&dedented)?;
-            finish_paste(&settings)
+            finish_paste(&settings)?;
+            // Only sizes are logged; clipboard content may be sensitive.
+            log_line(
+                "info",
+                &format!(
+                    "text dedented{}; before: {}; after: {}",
+                    if settings.no_paste { "" } else { " and pasted" },
+                    text_stats(&text),
+                    text_stats(&dedented)
+                ),
+            );
+            Ok(())
         }
         _ => run_image_to_text(&settings),
     }
+}
+
+/// Content-free summary of a text payload for logging.
+fn text_stats(text: &str) -> String {
+    format!(
+        "{} bytes, {} chars, {} lines",
+        text.len(),
+        text.chars().count(),
+        text.lines().count()
+    )
 }
 
 /// Final step shared by the text and image paths: honor `--no-paste`, give the
@@ -249,7 +272,7 @@ fn run_image_to_text(settings: &PasteSettings) -> Result<(), Box<dyn Error>> {
                 log_line("info", &error.to_string());
                 Ok(())
             } else {
-                log_line("error", &error.to_string());
+                // The error itself is logged by main.
                 platform::notify_error(&error.to_string());
                 Err(error)
             }
