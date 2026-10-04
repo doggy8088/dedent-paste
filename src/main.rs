@@ -9,7 +9,7 @@ use dedent_paste::update::{self, UpdateOptions};
 use dedent_paste::{
     GeminiError, PasteCliOverrides, PasteSettings, dedent_text, format_log_line, format_timestamp,
     is_silent_error, resolve_api_key, resolve_gemini_settings, resolve_log_path,
-    resolve_paste_settings,
+    resolve_paste_settings, tail_lines,
 };
 
 mod gemini;
@@ -24,6 +24,7 @@ Paste clipboard text with common indentation removed.
 Usage: dedent-paste [PASTE OPTIONS]
        dedent-paste (-i | -u | -v | -h)
        dedent-paste update [UPDATE OPTIONS]
+       dedent-paste logs [-n <COUNT>]
 
 With no options, dedent-paste reads the clipboard as plain text, removes the
 common indentation, writes the result back, and pastes it. This is what the
@@ -35,6 +36,7 @@ still running exits immediately so key-repeat cannot paste twice.
 Subcommands:
   update                     Update dedent-paste to the latest release. Run
                              'dedent-paste update --help' for options.
+  logs [-n <COUNT>]          Show the most recent log entries (default 10).
 
 Paste options (may be combined):
   -n, --no-paste             Rewrite the clipboard only; do not send Cmd+V /
@@ -75,6 +77,21 @@ Options:
   -h, --help     Print this help and exit
 ";
 
+const LOGS_HELP: &str = "\
+dedent-paste logs {version}
+Show the most recent log entries.
+
+Usage: dedent-paste logs [-n <COUNT>]
+
+Options:
+  -n, --lines <COUNT>  Maximum number of entries to show (default 10)
+  -h, --help           Print this help and exit
+
+The log file is ~/Library/Logs/dedent-paste.log on macOS and
+%LOCALAPPDATA%\\dedent-paste\\dedent-paste.log on Windows; set
+DEDENT_PASTE_LOG_FILE to override it. Clipboard content is never logged.
+";
+
 #[derive(Debug, PartialEq, Eq)]
 enum Command {
     Paste(PasteCliOverrides),
@@ -84,6 +101,8 @@ enum Command {
     Uninstall,
     Update(UpdateOptions),
     UpdateHelp,
+    Logs(usize),
+    LogsHelp,
 }
 
 fn parse_args(args: impl Iterator<Item = String>) -> Result<Command, String> {
@@ -92,6 +111,9 @@ fn parse_args(args: impl Iterator<Item = String>) -> Result<Command, String> {
     if let Some(first) = args.first() {
         if first == "update" {
             return parse_update_args(&args[1..]);
+        }
+        if first == "logs" {
+            return parse_logs_args(&args[1..]);
         }
     }
 
@@ -151,6 +173,61 @@ fn parse_update_args(args: &[String]) -> Result<Command, String> {
     Ok(Command::Update(options))
 }
 
+const DEFAULT_LOG_LINES: usize = 10;
+
+fn parse_logs_args(args: &[String]) -> Result<Command, String> {
+    let mut count = DEFAULT_LOG_LINES;
+    let mut iter = args.iter();
+    while let Some(arg) = iter.next() {
+        match arg.as_str() {
+            "-h" | "--help" => return Ok(Command::LogsHelp),
+            "-n" | "--lines" => {
+                let value = iter
+                    .next()
+                    .ok_or_else(|| format!("{arg} requires a number of log lines"))?;
+                count = parse_log_count(value)?;
+            }
+            other if other.starts_with("--lines=") => {
+                count = parse_log_count(&other["--lines=".len()..])?;
+            }
+            other => return Err(format!("unknown option '{other}' for 'logs'")),
+        }
+    }
+    Ok(Command::Logs(count))
+}
+
+fn parse_log_count(value: &str) -> Result<usize, String> {
+    match value.trim().parse::<usize>() {
+        Ok(count) if count > 0 => Ok(count),
+        _ => Err(format!(
+            "-n must be a positive integer number of log lines, got '{value}'"
+        )),
+    }
+}
+
+/// Print the last `count` log entries (one per line), oldest first.
+fn show_logs(count: usize) -> Result<(), Box<dyn Error>> {
+    let path = resolve_log_path(
+        |name| std::env::var(name).ok(),
+        platform::default_log_path(),
+    )
+    .ok_or("cannot determine the log file path; set DEDENT_PASTE_LOG_FILE")?;
+
+    let bytes = match std::fs::read(&path) {
+        Ok(bytes) => bytes,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            println!("No log file yet: {}", path.display());
+            return Ok(());
+        }
+        Err(error) => {
+            return Err(format!("cannot read log file {}: {error}", path.display()).into());
+        }
+    };
+
+    print!("{}", tail_lines(&String::from_utf8_lossy(&bytes), count));
+    Ok(())
+}
+
 fn parse_delay_ms(value: &str) -> Result<u64, String> {
     value
         .trim()
@@ -185,6 +262,11 @@ fn main() {
         Command::Update(options) => update::run_update(&options),
         Command::UpdateHelp => {
             print!("{}", UPDATE_HELP.replace("{version}", VERSION));
+            Ok(())
+        }
+        Command::Logs(count) => show_logs(count),
+        Command::LogsHelp => {
+            print!("{}", LOGS_HELP.replace("{version}", VERSION));
             Ok(())
         }
     };
@@ -719,6 +801,24 @@ mod tests {
                 delay_ms: Some(120),
             }))
         );
+    }
+
+    #[test]
+    fn logs_subcommand_parses_line_count() {
+        assert_eq!(parse(&["logs"]), Ok(Command::Logs(10)));
+        assert_eq!(parse(&["logs", "-n", "100"]), Ok(Command::Logs(100)));
+        assert_eq!(parse(&["logs", "--lines", "5"]), Ok(Command::Logs(5)));
+        assert_eq!(parse(&["logs", "--lines=7"]), Ok(Command::Logs(7)));
+        assert_eq!(parse(&["logs", "-h"]), Ok(Command::LogsHelp));
+    }
+
+    #[test]
+    fn logs_subcommand_rejects_invalid_arguments() {
+        assert!(parse(&["logs", "-n"]).unwrap_err().contains("requires"));
+        assert!(parse(&["logs", "-n", "abc"]).unwrap_err().contains("abc"));
+        assert!(parse(&["logs", "-n", "0"]).is_err());
+        assert!(parse(&["logs", "-n", "-3"]).is_err());
+        assert!(parse(&["logs", "--bogus"]).unwrap_err().contains("--bogus"));
     }
 
     #[test]

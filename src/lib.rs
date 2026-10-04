@@ -720,6 +720,17 @@ pub fn format_log_line(timestamp: &str, level: &str, message: &str) -> String {
     format!("{timestamp} [{level}] {message}\n")
 }
 
+/// Last `count` non-empty lines of a log, oldest first, each ending in `\n`.
+pub fn tail_lines(content: &str, count: usize) -> String {
+    let lines: Vec<&str> = content.lines().filter(|line| !line.is_empty()).collect();
+    let start = lines.len().saturating_sub(count);
+
+    lines[start..]
+        .iter()
+        .map(|line| format!("{line}\n"))
+        .collect()
+}
+
 pub fn format_timestamp(unix_seconds: u64) -> String {
     let (year, month, day) = civil_from_days((unix_seconds / 86_400) as i64);
     let seconds_of_day = unix_seconds % 86_400;
@@ -1327,6 +1338,19 @@ mod tests {
             format_log_line("2026-08-25T01:02:03Z", "error", "boom\nsecond"),
             "2026-08-25T01:02:03Z [error] boom second\n"
         );
+    }
+
+    #[test]
+    fn tails_the_last_lines_oldest_first() {
+        assert_eq!(tail_lines("a\nb\nc\nd\n", 2), "c\nd\n");
+        assert_eq!(tail_lines("a\nb\n", 10), "a\nb\n");
+    }
+
+    #[test]
+    fn tail_handles_crlf_blank_lines_and_missing_trailing_newline() {
+        assert_eq!(tail_lines("a\r\n\r\nb\r\nc", 2), "b\nc\n");
+        assert_eq!(tail_lines("", 5), "");
+        assert_eq!(tail_lines("a\nb\n", 0), "");
     }
 
     #[test]
