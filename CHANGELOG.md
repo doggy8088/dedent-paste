@@ -4,6 +4,13 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+## 0.6.1
+
+- 新增 `logs` 子命令：`dedent-paste logs` 直接顯示最近的記錄（預設 10 筆，由舊到新），可用 `-n <筆數>` 或 `--lines <筆數>` 調整上限；記錄檔不存在時顯示提示，路徑沿用 `DEDENT_PASTE_LOG_FILE` 與各平台預設值。
+- 記錄檔現在會記錄每次成功的文字 dedent 與貼上（處理前後的位元組數、字元數與行數），絕不記錄剪貼簿內容；使用 `--no-paste` 時只記錄已整理而未貼上。
+- 剪貼簿讀寫與貼上步驟（例如 macOS 缺少 Accessibility 權限導致 `osascript` 失敗）的錯誤原本只輸出到 stderr，現在也會寫入記錄檔，影像轉文字的錯誤不再重複記錄。
+- 開發：`make build` 改為 release 建置（新增 `make build-debug`），`make` 預設執行新增的 `make help`，列出所有目標。
+
 ## 0.6.0
 
 - Windows 新增 `--install`／`--uninstall` 自動管理 AutoHotkey 快捷鍵：安裝後立即啟用 `Win+V`，並建立目前使用者的登入啟動捷徑；移除時停止受管理腳本並清除其腳本與捷徑。
