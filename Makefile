@@ -1,46 +1,44 @@
-.PHONY: build build-debug build-locked release test test-rust test-npm fmt fmt-check check ci install clean
+.DEFAULT_GOAL := help
+.PHONY: help build build-debug build-locked release test test-rust test-npm fmt fmt-check check ci install clean
 
-# Optimized release build (default)
-build:
+# Every target with a trailing `## description` comment is listed by `make help`.
+help: ## Show this help (default target)
+	@echo "Usage: make <target>"
+	@echo
+	@awk 'BEGIN { FS = ":.*## " } /^[a-zA-Z_-]+:.*## / { printf "  %-14s %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
+
+build: ## Optimized release build (cargo build --release --locked)
 	cargo build --release --locked
 
-# Debug build
-build-debug:
+build-debug: ## Debug build
 	cargo build
 
-# Alias for `build`
-release: build
+release: build ## Alias for `build`
 
-# Run all tests (Rust unit tests + npm postinstall tests)
-test: test-rust test-npm
+test: test-rust test-npm ## Run all tests (Rust unit tests + npm postinstall tests)
 
-test-rust:
+test-rust: ## Run Rust tests
 	cargo test --locked
 
-test-npm:
+test-npm: ## Run npm postinstall tests
 	npm test
 
-# Format code in place
-fmt:
+fmt: ## Format code in place
 	cargo fmt
 
-# Verify formatting without modifying files
-fmt-check:
+fmt-check: ## Verify formatting without modifying files
 	cargo fmt --check
 
-# Type-check without producing binaries
-check:
+check: ## Type-check without producing binaries
 	cargo check --locked
 
-# Everything CI runs
-ci: fmt-check test build-locked
+ci: fmt-check test build-locked ## Everything CI runs
 
 build-locked:
 	cargo build --locked
 
-# Build from source and configure Karabiner-Elements (macOS)
-install:
+install: ## Build from source and configure Karabiner-Elements (macOS)
 	./install.sh
 
-clean:
+clean: ## Remove build artifacts
 	cargo clean
