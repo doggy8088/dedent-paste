@@ -58,6 +58,79 @@ pub fn dedent_text(input: &str) -> String {
     }
 }
 
+/// Rules turned off when fixing Markdown from the clipboard. MDX003 would add a
+/// final newline the copied snippet did not have, and MDX002 would turn the
+/// Windows clipboard's CRLF line endings into LF.
+const MARKDOWN_IGNORED_RULES: [&str; 2] = ["MDX002", "MDX003"];
+
+/// Result of [`normalize_text`]: the text to put back on the clipboard plus a
+/// content-free description of what happened, for logging.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NormalizeOutcome {
+    /// Final text: the dedented text, Markdown-fixed when that was safe.
+    pub text: String,
+    /// The dedented text was detected as Markdown.
+    pub markdown_detected: bool,
+    /// Positive Markdown detection signals (stable identifiers, never content).
+    pub signals: Vec<&'static str>,
+    /// `markdown-fixer` changed the dedented text.
+    pub markdown_fixed: bool,
+    /// `markdown-fixer` refused to fix (structural error); the dedented text
+    /// is used unchanged.
+    pub refused: bool,
+}
+
+/// Dedent `input`, then, when `markdown` is enabled and the result looks like
+/// Markdown, apply `markdown-fixer`'s safe fixes.
+///
+/// Non-Markdown text is returned exactly as [`dedent_text`] produces it. The
+/// Markdown path never adds or removes trailing newlines relative to the
+/// dedented text, and a refused fix falls back to the dedented text.
+pub fn normalize_text(input: &str, markdown: bool) -> NormalizeOutcome {
+    let dedented = dedent_text(input);
+    let mut outcome = NormalizeOutcome {
+        text: String::new(),
+        markdown_detected: false,
+        signals: Vec::new(),
+        markdown_fixed: false,
+        refused: false,
+    };
+
+    if markdown {
+        let detection = markdown_fixer::detect::looks_like_markdown(&dedented);
+        outcome.markdown_detected = detection.is_markdown;
+        outcome.signals = detection.signals;
+    }
+    if !outcome.markdown_detected {
+        outcome.text = dedented;
+        return outcome;
+    }
+
+    // Fix only the body and re-attach the dedented text's own trailing
+    // newlines, so blank-line rules cannot add or drop them at the end.
+    let body = strip_trailing_newlines(&dedented);
+    let trailing_newlines = &dedented[body.len()..];
+    let options = markdown_fixer::Options {
+        ignore_rules: Some(MARKDOWN_IGNORED_RULES.map(String::from).to_vec()),
+        ..markdown_fixer::Options::default()
+    };
+    let fixed = markdown_fixer::fix_document(body, &options);
+
+    if fixed.refused {
+        outcome.refused = true;
+        outcome.text = dedented;
+        return outcome;
+    }
+
+    let text = format!(
+        "{}{trailing_newlines}",
+        strip_trailing_newlines(&fixed.text)
+    );
+    outcome.markdown_fixed = text != dedented;
+    outcome.text = text;
+    outcome
+}
+
 pub fn text_from_bytes(bytes: Vec<u8>) -> Result<String, DedentError> {
     String::from_utf8(bytes).map_err(|_| DedentError::InvalidUtf8)
 }
@@ -656,6 +729,7 @@ pub fn is_silent_error(error: &GeminiError) -> bool {
 
 const ENV_NO_PASTE: &str = "DEDENT_PASTE_NO_PASTE";
 const ENV_PASTE_DELAY_MS: &str = "DEDENT_PASTE_PASTE_DELAY_MS";
+const ENV_MARKDOWN: &str = "DEDENT_PASTE_MARKDOWN";
 
 /// Command-line overrides for [`resolve_paste_settings`]. `None` means "not
 /// given on the command line, fall back to the environment".
@@ -663,9 +737,10 @@ const ENV_PASTE_DELAY_MS: &str = "DEDENT_PASTE_PASTE_DELAY_MS";
 pub struct PasteCliOverrides {
     pub no_paste: bool,
     pub delay_ms: Option<u64>,
+    pub no_markdown: bool,
 }
 
-/// How the final paste step behaves after the clipboard has been rewritten.
+/// How the text is rewritten and how the final paste step behaves.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct PasteSettings {
     /// Only rewrite the clipboard; leave sending Cmd+V / Ctrl+V to the caller.
@@ -673,15 +748,20 @@ pub struct PasteSettings {
     /// Extra fixed delay applied after modifier keys are released and before
     /// the paste keystroke is sent.
     pub delay: Duration,
+    /// Detect Markdown after dedenting and apply `markdown-fixer`'s safe fixes.
+    pub markdown: bool,
 }
 
 /// Resolve paste behavior from the environment (`DEDENT_PASTE_NO_PASTE`,
-/// `DEDENT_PASTE_PASTE_DELAY_MS`) with command-line flags taking precedence.
+/// `DEDENT_PASTE_PASTE_DELAY_MS`, `DEDENT_PASTE_MARKDOWN`) with command-line
+/// flags taking precedence.
 pub fn resolve_paste_settings(
     get: impl Fn(&str) -> Option<String>,
     cli: PasteCliOverrides,
 ) -> Result<PasteSettings, String> {
     let no_paste = cli.no_paste || env_non_empty(&get, ENV_NO_PASTE).is_some_and(|v| is_truthy(&v));
+    let markdown =
+        !cli.no_markdown && !env_non_empty(&get, ENV_MARKDOWN).is_some_and(|v| is_falsy(&v));
 
     let delay_ms = match cli.delay_ms {
         Some(ms) => ms,
@@ -696,6 +776,7 @@ pub fn resolve_paste_settings(
     Ok(PasteSettings {
         no_paste,
         delay: Duration::from_millis(delay_ms),
+        markdown,
     })
 }
 
@@ -703,6 +784,13 @@ fn is_truthy(value: &str) -> bool {
     matches!(
         value.trim().to_ascii_lowercase().as_str(),
         "1" | "true" | "yes" | "on"
+    )
+}
+
+fn is_falsy(value: &str) -> bool {
+    matches!(
+        value.trim().to_ascii_lowercase().as_str(),
+        "0" | "false" | "no" | "off"
     )
 }
 
@@ -1408,6 +1496,214 @@ mod tests {
         assert!(bmp_to_png(b"not a bmp").is_err());
     }
 
+    // Tests named `markdown_fix_*` run markdown-fixer's `fix_document`; their
+    // expected text was produced by the reference markdown-fixer.mjs with
+    // `ignoreRules: ['MDX002', 'MDX003']`.
+
+    #[test]
+    fn markdown_fix_normalizes_dedented_markdown() {
+        let outcome = normalize_text(
+            "  #標題\n\n  **重點：**說明\n  - 項目一\n  * 項目二\n",
+            true,
+        );
+        assert_eq!(
+            outcome,
+            NormalizeOutcome {
+                // MDX031 在 markdown-fixer 0.1（oracle v1.1.0）改為只報告：換項目符號會
+                // 把 CommonMark 的兩個清單合併成一個，所以 `* 項目二` 維持原樣。
+                text: "# 標題\n\n**重點**：說明\n- 項目一\n* 項目二\n".to_string(),
+                markdown_detected: true,
+                signals: vec!["list", "emphasis", "syntax-error"],
+                markdown_fixed: true,
+                refused: false,
+            }
+        );
+    }
+
+    #[test]
+    fn markdown_fix_normalizes_prompt_unwrapped_markdown() {
+        let input = "› ## 標題\n\n  - 項目一\n  - 項目二\n\n  **說明：**內容";
+        assert_eq!(
+            dedent_text(input),
+            "## 標題\n\n- 項目一\n- 項目二\n\n**說明：**內容"
+        );
+        let outcome = normalize_text(input, true);
+        assert!(outcome.markdown_detected);
+        assert_eq!(
+            outcome.text,
+            "## 標題\n\n- 項目一\n- 項目二\n\n**說明**：內容"
+        );
+    }
+
+    #[test]
+    fn markdown_fix_short_ai_snippets() {
+        assert_eq!(
+            normalize_text("**優點：**速度快\n**缺點：**很慢", true).text,
+            "**優點**：速度快\n**缺點**：很慢"
+        );
+    }
+
+    #[test]
+    fn markdown_fix_refusal_falls_back_to_dedented_text() {
+        let input = "  # Title\n\n  - a\n  - b\n\n  <!-- todo\n";
+        let outcome = normalize_text(input, true);
+        assert!(outcome.markdown_detected);
+        assert!(outcome.refused);
+        assert!(!outcome.markdown_fixed);
+        assert_eq!(outcome.text, dedent_text(input));
+    }
+
+    #[test]
+    fn markdown_fix_preserves_trailing_newline_behavior() {
+        // A single line loses its trailing newlines, exactly like dedent_text.
+        assert_eq!(
+            normalize_text("**標籤：**內容\n\n", true).text,
+            "**標籤**：內容"
+        );
+        // Multiple lines keep every trailing newline, even blank ones that
+        // markdown-fixer would otherwise collapse.
+        assert_eq!(
+            normalize_text("# 標題\n\n\n\n- 項目一\n- 項目二\n\n\n", true).text,
+            "# 標題\n\n- 項目一\n- 項目二\n\n\n"
+        );
+        // A missing final newline stays missing (MDX003 is disabled).
+        assert_eq!(
+            normalize_text("# 標題\n\n\n- 項目一\n- 項目二", true).text,
+            "# 標題\n\n- 項目一\n- 項目二"
+        );
+    }
+
+    #[test]
+    fn markdown_fix_preserves_crlf_line_endings() {
+        assert_eq!(
+            normalize_text("# 標題\r\n\r\n\r\n- 項目一\r\n* 項目二\r\n", true).text,
+            "# 標題\r\n\r\n- 項目一\r\n* 項目二\r\n"
+        );
+    }
+
+    #[test]
+    fn normalize_leaves_code_and_logs_untouched() {
+        let inputs = [
+            "    import os\n\n\n\n    def main():\n        pass\n",
+            "#!/bin/sh\n# Title\n\n\n\n- a\n- b\n",
+            "# Install\nnpm install\n\n\n# Build\nnpm run build\n",
+            "2026-11-05 10:00:00 INFO a\n\n\n2026-11-05 10:00:01 WARN b\n",
+            "name: CI\non:\n  push:\n\n\njobs:\n  build:\n    runs-on: ubuntu-latest\n",
+            "{\n  \"text\": \"# a\\n- b\"\n}\n",
+            "fn main() {\n    // # Not a heading\n\n\n    println!(\"**x**\");\n}\n",
+        ];
+        for input in inputs {
+            let outcome = normalize_text(input, true);
+            assert!(!outcome.markdown_detected, "{input:?} {outcome:?}");
+            assert!(!outcome.markdown_fixed && !outcome.refused);
+            assert_eq!(outcome.text, dedent_text(input), "{input:?}");
+        }
+    }
+
+    #[test]
+    fn normalize_without_markdown_only_dedents() {
+        let input = "  #標題\n\n  **重點：**說明\n  - 項目一\n  * 項目二\n";
+        assert_eq!(
+            normalize_text(input, false),
+            NormalizeOutcome {
+                text: dedent_text(input),
+                markdown_detected: false,
+                signals: Vec::new(),
+                markdown_fixed: false,
+                refused: false,
+            }
+        );
+    }
+
+    // Every input used by the dedent tests above. Text that is not detected as
+    // Markdown must come out of `normalize_text` byte-identical to `dedent_text`.
+    const EXISTING_DEDENT_INPUTS: &[&str] = &[
+        "    alpha\n      beta\n",
+        "    alpha\n\n      beta\n",
+        "    alpha\n  \n      beta\n",
+        "alpha\n  beta\n",
+        "  alpha  \n    beta\t \n",
+        "alpha  \n  beta\t\n",
+        "\t alpha\n\t\tbeta\n",
+        "  alpha\n    beta",
+        "生成摘要\n",
+        "  生成摘要\r\n\r\n",
+        "› 生成摘要\n",
+        "第一行\n第二行\n\n",
+        "  alpha  \r\n    beta\t\r\n",
+        "❯ Rewrite everything in Rust. I need cross-platform of the repo\n  scanner. Use cargo-dist to package all available platforms.",
+        "    ❯ alpha\n      beta\n",
+        "› 我想要分析整個專案 src/ 的原始碼結構與系統架構、資料庫結構(if any)、專案詞彙表(統一名詞解釋)、技術棧、共用模組、主要流程與維護注意事項，請幫我制定一套詳盡的分\n  析計畫，幫助我快速理解本專案。請設計給一位資深工程師可以輕鬆理解的分析報告。請建立多份 Markdown 文件，方便我快速理解架構。相關圖表要參考 $design-doc-mermaid\n  技能進行繪製。",
+        "> Hello 123\n  I'm Will.\n",
+        "› 中文\n  測試\n",
+        "› alpha\n  beta\n",
+        "› Mermaid\n  技能\n",
+        "❯\u{00A0}我需要在「系統管理」頁面加入 Tab 分類，方便切換與操作。\n\u{00A0}\u{00A0}系統管理打開後，網址列應該要有 deep linking 能力。\n",
+        "›\u{00A0}alpha\n  beta\n",
+        "›\u{3000}中文\n\u{00A0}\u{00A0}測試\n",
+        ">\u{00A0}Hello 123\n\u{00A0}\u{00A0}I'm Will.\n",
+        "❯ 我需要在「系統管理」頁面加入 Tab 分類，將不同的管理功能，區分成不同的群組，方便切換與操作。\n  系統管理打開後，網址列應該要有 deep linking 能力。切換到不同 Tab 應該也要有 deep linking 能力。\n",
+        "❯ First sentence.\n  Second line\n",
+        "› 第一行（完成。）\n  第二行\n",
+        "› 第一行，\n  第二行\n",
+        "› first,\n  second\n",
+        "› 第一行（備註，）\n  第二行\n",
+        "› 清單\n  1. 第一項\n  2. 第二項\n",
+        "› items\n  - alpha\n  * beta\n",
+        "› items\n  1) alpha\n",
+        "› 共\n  100 元\n",
+        "› 版本\n  1.2.3 已釋出\n",
+        "› use\n  --flag here\n",
+        "› 說明：\n  內容\n",
+        "› note:\n  content\n",
+        "› set `KEY:\n  value` now.\n",
+        "› 設定 `KEY。\n  1. 不是清單`\n",
+        "❯ cmd --a \\  \n  --b\n",
+        "> cmd --a \\\n  --b\n",
+        "cmd --a \\\n  --b\n",
+        "› 第一段\n  仍在同段\n\n  第二段\n  仍在第二段\n",
+        "› 第一段\n  仍在同段\n  \n  第二段\n",
+        "› 第一段\r\n  仍在同段\r\n\r\n  第二段\r\n",
+        "› 第一行\n不是續行格式\n",
+        "  \n\t\n",
+        "",
+        "• 我補充一下這次實驗的需求：在我目前的使用環境中，按 Shift 無法在唯音內切換中文與英數，所以我採取的方式是，在偵測到連續誤鍵後，保留並送出原始英數字元，\n  再直接切換至系統的 ABC 輸入來源，讓後續按鍵由 ABC 處理。\n\n  因此，我想達成的行為與留在唯音內持續中英混輸有所不同。不過，這與你提到的程式碼應如何整合是兩個層面的問題。即使最終行為是切換系統輸入來源，前面的判斷\n  與按鍵保留邏輯，仍應評估如何整合至 Typewriter_MixedAlphanumerical.swift；這部分我原先沒有充分考慮。\n\n  目前選用 ABC 是依照我自己的使用習慣。若要納入正式功能，切換目標也應考慮使用者實際使用的英文鍵盤配置，不宜固定假設為 ABC。",
+        "❯ 我希望調整一下「歷史紀錄」頁面的功能：\n  1. 我希望重新轉錄時，可以選取目前所有的提示詞，讓使用者有機會可以變更為其他的提示詞設定來重新轉錄。你可以開啟一個新的彈窗讓使用者選\n  擇，要讓轉錄完成後才能回到原本的「歷史轉錄」視窗。\n  2. 聲音重播的播放器，在播放的時候，進度條左側的 `00:00` 時間應該要跟著變動，現在都固定為 `00:00` 是不正確的。\n\n  還有「編輯提示詞」有個 Bug 要修：\n  1. 我在「AI 校正」的「啟用結構化輸出」勾選，套用寫入，提示詞檔案也有看到寫入 `ZEROTYPE_ENABLE_STRUCTURED_OUTPUT:\n  true`，但是我關閉「編輯提示詞」後重開，我從UI上面還是會看到這個「啟用結構化輸出」沒有勾選！\n",
+        "❯ mcode provider add --name LLMShare --base-url https://llm-share.duotify.com/v1 \\\n  --api-format openai-responses --model deepseek-v4.1-flash \\\n  --api-key-env MCODE_PROVIDER_API_KEY --use",
+        "▸ Thought for 12s, 2.0k tokens\n  Evaluating Structured Output's Impact\n  結論先行：\n\n  │ 概念上「是的」，結構化輸出（Structured Output）確實是解決狀態判斷與解析問題最直覺的手段；但在目前以「GitHub Copilot\n  │ CLI」為核心的架構下，若全面改用純 JSON 輸出，會帶來新的技術瓶頸與風險。\n  │\n  │ 最推薦的實務做法其實是**「局部結構化（Micro-format / Key-Value）」**，既能享有結構化的高可靠度，又能避開 JSON 轉義與損毀的陷阱。\n\n  以下為您詳細分析優缺點、現實限制，以及最佳的落地架構：\n  ──────\n  ### 一、改用 Structured Output 的明顯好處",
+    ];
+
+    // Existing inputs that really are Markdown (AI chat output with a heading
+    // and bold text) and are therefore normalized on the Markdown path.
+    const EXISTING_MARKDOWN_INPUT_PREFIXES: &[&str] = &["▸ Thought for 12s"];
+
+    #[test]
+    fn normalize_keeps_non_markdown_dedent_output_byte_identical() {
+        for input in EXISTING_DEDENT_INPUTS {
+            if EXISTING_MARKDOWN_INPUT_PREFIXES
+                .iter()
+                .any(|prefix| input.starts_with(prefix))
+            {
+                // markdown-fixer only separates the heading from the rule above it.
+                let outcome = normalize_text(input, true);
+                assert!(outcome.markdown_detected && !outcome.refused, "{outcome:?}");
+                assert_eq!(
+                    outcome.text,
+                    dedent_text(input).replace("──────\n###", "──────\n\n###")
+                );
+                continue;
+            }
+            let outcome = normalize_text(input, true);
+            assert!(
+                !outcome.markdown_detected,
+                "unexpectedly detected as Markdown: {input:?} {:?}",
+                outcome.signals
+            );
+            assert_eq!(outcome.text, dedent_text(input), "{input:?}");
+            assert_eq!(normalize_text(input, false).text, dedent_text(input));
+        }
+    }
+
     #[test]
     fn paste_settings_default_to_pasting_immediately() {
         let settings = resolve_paste_settings(|_| None, PasteCliOverrides::default()).unwrap();
@@ -1415,7 +1711,8 @@ mod tests {
             settings,
             PasteSettings {
                 no_paste: false,
-                delay: Duration::ZERO
+                delay: Duration::ZERO,
+                markdown: true,
             }
         );
     }
@@ -1453,11 +1750,51 @@ mod tests {
             PasteCliOverrides {
                 no_paste: true,
                 delay_ms: Some(40),
+                no_markdown: false,
             },
         )
         .unwrap();
         assert!(settings.no_paste);
         assert_eq!(settings.delay, Duration::from_millis(40));
+    }
+
+    #[test]
+    fn markdown_setting_defaults_on_and_reads_environment() {
+        let enabled = |env: &dyn Fn(&str) -> Option<String>, no_markdown: bool| {
+            resolve_paste_settings(
+                env,
+                PasteCliOverrides {
+                    no_markdown,
+                    ..PasteCliOverrides::default()
+                },
+            )
+            .unwrap()
+            .markdown
+        };
+
+        assert!(enabled(&|_| None, false));
+        for falsy in ["0", "false", "FALSE", "off", " Off ", "no"] {
+            let env = |name: &str| (name == "DEDENT_PASTE_MARKDOWN").then(|| falsy.to_string());
+            assert!(!enabled(&env, false), "{falsy:?} should disable Markdown");
+        }
+        for other in ["1", "true", "on", "", "  ", "maybe"] {
+            let env = |name: &str| (name == "DEDENT_PASTE_MARKDOWN").then(|| other.to_string());
+            assert!(enabled(&env, false), "{other:?} should keep Markdown on");
+        }
+    }
+
+    #[test]
+    fn no_markdown_flag_overrides_environment() {
+        let env = |name: &str| (name == "DEDENT_PASTE_MARKDOWN").then(|| "1".to_string());
+        let settings = resolve_paste_settings(
+            env,
+            PasteCliOverrides {
+                no_markdown: true,
+                ..PasteCliOverrides::default()
+            },
+        )
+        .unwrap();
+        assert!(!settings.markdown);
     }
 
     #[test]

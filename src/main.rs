@@ -7,9 +7,9 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use dedent_paste::text_from_bytes;
 use dedent_paste::update::{self, UpdateOptions};
 use dedent_paste::{
-    GeminiError, PasteCliOverrides, PasteSettings, dedent_text, format_log_line, format_timestamp,
-    is_silent_error, resolve_api_key, resolve_gemini_settings, resolve_log_path,
-    resolve_paste_settings, tail_lines,
+    GeminiError, NormalizeOutcome, PasteCliOverrides, PasteSettings, format_log_line,
+    format_timestamp, is_silent_error, normalize_text, resolve_api_key, resolve_gemini_settings,
+    resolve_log_path, resolve_paste_settings, tail_lines,
 };
 
 mod gemini;
@@ -44,8 +44,11 @@ Paste options (may be combined):
                              Hammerspoon, ...) sends the paste keystroke itself.
       --paste-delay-ms <MS>  Extra delay before the paste keystroke, after the
                              modifier keys are released. Default 0.
-  Environment equivalents: DEDENT_PASTE_NO_PASTE=1, DEDENT_PASTE_PASTE_DELAY_MS=<MS>.
-  Command-line flags take precedence.
+      --no-markdown          Only dedent. By default, text that looks like
+                             Markdown is also normalized with markdown-fixer's
+                             safe fixes (code, logs and data are left alone).
+  Environment equivalents: DEDENT_PASTE_NO_PASTE=1, DEDENT_PASTE_PASTE_DELAY_MS=<MS>,
+  DEDENT_PASTE_MARKDOWN=0. Command-line flags take precedence.
 
 Other options (exclusive):
   -i, --install      Register the Left Option+V rule in Karabiner-Elements (macOS).
@@ -134,6 +137,7 @@ fn parse_args(args: impl Iterator<Item = String>) -> Result<Command, String> {
     while let Some(arg) = iter.next() {
         match arg.as_str() {
             "-n" | "--no-paste" => overrides.no_paste = true,
+            "--no-markdown" => overrides.no_markdown = true,
             "--paste-delay-ms" => {
                 let value = iter
                     .next()
@@ -296,24 +300,48 @@ fn run(overrides: PasteCliOverrides) -> Result<(), Box<dyn Error>> {
 
     match platform::read_clipboard()? {
         Some(text) if !text.is_empty() => {
-            let dedented = dedent_text(&text);
+            let outcome = normalize_text(&text, settings.markdown);
 
-            platform::write_clipboard(&dedented)?;
+            platform::write_clipboard(&outcome.text)?;
             finish_paste(&settings)?;
-            // Only sizes are logged; clipboard content may be sensitive.
+            // Only sizes and detection signal names are logged; clipboard
+            // content may be sensitive.
             log_line(
                 "info",
                 &format!(
-                    "text dedented{}; before: {}; after: {}",
+                    "text dedented{}; before: {}; after: {}; {}",
                     if settings.no_paste { "" } else { " and pasted" },
                     text_stats(&text),
-                    text_stats(&dedented)
+                    text_stats(&outcome.text),
+                    markdown_summary(&settings, &outcome)
                 ),
             );
             Ok(())
         }
         _ => run_image_to_text(&settings),
     }
+}
+
+/// Content-free summary of the Markdown step for logging.
+fn markdown_summary(settings: &PasteSettings, outcome: &NormalizeOutcome) -> String {
+    if !settings.markdown {
+        return "markdown: disabled".to_string();
+    }
+    let signals = if outcome.signals.is_empty() {
+        "none".to_string()
+    } else {
+        outcome.signals.join(", ")
+    };
+    let result = if !outcome.markdown_detected {
+        "not detected"
+    } else if outcome.refused {
+        "detected, fix refused"
+    } else if outcome.markdown_fixed {
+        "detected, fixed"
+    } else {
+        "detected, unchanged"
+    };
+    format!("markdown: {result} (signals: {signals})")
 }
 
 /// Content-free summary of a text payload for logging.
@@ -785,6 +813,7 @@ mod tests {
             Ok(Command::Paste(PasteCliOverrides {
                 no_paste: true,
                 delay_ms: None,
+                no_markdown: false,
             }))
         );
         assert_eq!(
@@ -792,6 +821,7 @@ mod tests {
             Ok(Command::Paste(PasteCliOverrides {
                 no_paste: true,
                 delay_ms: Some(250),
+                no_markdown: false,
             }))
         );
         assert_eq!(
@@ -799,8 +829,83 @@ mod tests {
             Ok(Command::Paste(PasteCliOverrides {
                 no_paste: false,
                 delay_ms: Some(120),
+                no_markdown: false,
             }))
         );
+    }
+
+    #[test]
+    fn no_markdown_flag_combines_with_paste_options() {
+        assert_eq!(
+            parse(&["--no-markdown"]),
+            Ok(Command::Paste(PasteCliOverrides {
+                no_paste: false,
+                delay_ms: None,
+                no_markdown: true,
+            }))
+        );
+        assert_eq!(
+            parse(&["-n", "--no-markdown", "--paste-delay-ms=5"]),
+            Ok(Command::Paste(PasteCliOverrides {
+                no_paste: true,
+                delay_ms: Some(5),
+                no_markdown: true,
+            }))
+        );
+        assert!(
+            parse(&["--no-markdown", "-i"])
+                .unwrap_err()
+                .contains("cannot be combined")
+        );
+    }
+
+    #[test]
+    fn markdown_summary_names_signals_but_not_content() {
+        let settings = PasteSettings {
+            no_paste: false,
+            delay: Duration::ZERO,
+            markdown: true,
+        };
+        let outcome = NormalizeOutcome {
+            text: "secret clipboard text".to_string(),
+            markdown_detected: true,
+            signals: vec!["atx-heading", "list"],
+            markdown_fixed: true,
+            refused: false,
+        };
+        let summary = markdown_summary(&settings, &outcome);
+        assert_eq!(
+            summary,
+            "markdown: detected, fixed (signals: atx-heading, list)"
+        );
+        assert!(!summary.contains("secret"));
+
+        let refused = NormalizeOutcome {
+            markdown_fixed: false,
+            refused: true,
+            ..outcome.clone()
+        };
+        assert_eq!(
+            markdown_summary(&settings, &refused),
+            "markdown: detected, fix refused (signals: atx-heading, list)"
+        );
+
+        let plain = NormalizeOutcome {
+            markdown_detected: false,
+            signals: Vec::new(),
+            markdown_fixed: false,
+            ..outcome.clone()
+        };
+        assert_eq!(
+            markdown_summary(&settings, &plain),
+            "markdown: not detected (signals: none)"
+        );
+
+        let disabled = PasteSettings {
+            markdown: false,
+            ..settings
+        };
+        assert_eq!(markdown_summary(&disabled, &plain), "markdown: disabled");
     }
 
     #[test]

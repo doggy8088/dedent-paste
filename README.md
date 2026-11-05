@@ -9,7 +9,8 @@
 3. 移除每一行結尾多餘的空白或 Tab。
 4. 如果內容只有一行文字，且結尾包含一個或多個換行字元，移除結尾的換行字元；多行文字則保留行尾換行字元。
 5. 如果內容符合 `›`、`❯` 或 `•` 提示格式，移除提示符與續行前綴，並合併同一段落中的視覺換行。若為 `>`、`▸` 或 `▾` 前綴（例如引文或 CLI 思考區塊前綴），只移除前綴與縮排空白，不會改變原有換行。提示符後與續行縮排的空白不限 ASCII 空白，也接受不換行空白（U+00A0）、全形空白（U+3000）等 Unicode 空白字元。
-6. 將整理後的文字寫回剪貼簿並立即貼上。
+6. 如果整理後的文字看起來像 Markdown，再以 [markdown-fixer](https://github.com/doggy8088/markdown-fixer) 套用安全的語法修正（詳見〈[Markdown 自動修正](#markdown-自動修正)〉）；程式碼、log 與設定檔不受影響。
+7. 將整理後的文字寫回剪貼簿並立即貼上。
 
 提示格式中的單一換行通常是終端機寬度造成的視覺折行。`dedent-paste` 會依文字邊界自動接合：CJK 文字直接相接，拉丁文字或中拉丁文字交界補上一個空白。兩個以上連續的換行則視為真正的段落分隔並予以保留。若某一行的結尾是標點符號（`。`、`！`、`？`、`：`、`.`、`!`、`?`、`:`、`…`、`，`、`,`，後方可接右引號或右括號），或下一行以清單標記開頭（`1. `、`2) `、`- `、`* `），則視為使用者實際輸入的換行並予以保留，不會與下一行接合。若某一行的反引號（`` ` ``）數量為奇數，表示折行發生在尚未閉合的程式碼片段內，此時無論行尾標點或下一行開頭為何，都會與下一行接合。若某一行的結尾是反斜線（`\`），代表使用者刻意輸入的續行（例如多行 shell 指令），該換行一律保留，不與下一行接合；行尾反斜線後方的空白仍會被移除。未符合提示格式的文字不會套用這項段落展開處理。
 
@@ -107,12 +108,13 @@ $HOME/.local/bin/dedent-paste
 | `update` | 檢查並自動更新 `dedent-paste` 至最新版本（支援 `-c`/`--check` 與 `-f`/`--force`） |
 | `-n`, `--no-paste` | 只整理並寫回剪貼簿，不送出 `Command+V` / `Ctrl+V`；由呼叫端自行貼上 |
 | `--paste-delay-ms <毫秒>` | 修飾鍵放開後、送出貼上按鍵前額外等待的毫秒數（預設 `0`） |
+| `--no-markdown` | 只移除縮排，不做 Markdown 偵測與修正 |
 | `-h`, `--help` | 顯示參數說明 |
 | `-v`, `--version` | 顯示目前版本號 |
 | `-i`, `--install` | macOS：初始化 Karabiner-Elements；Windows：設定 AutoHotkey，立即啟用 `Win+V` 並於登入時自動啟動 |
 | `-u`, `--uninstall` | macOS：移除 Karabiner-Elements 規則；Windows：停止並移除受管理的 AutoHotkey 腳本與啟動捷徑 |
 
-`--no-paste` 與 `--paste-delay-ms` 可以同時使用，也可以改用環境變數 `DEDENT_PASTE_NO_PASTE`、`DEDENT_PASTE_PASTE_DELAY_MS`（見〈[環境變數](#環境變數)〉）；命令列參數優先。`-h`、`-v`、`-i`、`-u` 與 `update` 必須單獨使用。
+`--no-paste`、`--paste-delay-ms` 與 `--no-markdown` 可以同時使用，也可以改用環境變數 `DEDENT_PASTE_NO_PASTE`、`DEDENT_PASTE_PASTE_DELAY_MS`、`DEDENT_PASTE_MARKDOWN`（見〈[環境變數](#環境變數)〉）；命令列參數優先。`-h`、`-v`、`-i`、`-u` 與 `update` 必須單獨使用。
 
 `update` 的行為：
 
@@ -301,6 +303,30 @@ return
 
 如果你仍想保留 Windows 內建的 `Win+V` 剪貼簿歷程記錄，可以把 AutoHotkey 腳本裡的 `#v` 改成其他快捷鍵，例如 `!v`（`Alt+V`）。
 
+## Markdown 自動修正
+
+從 AI 聊天介面、終端機或網頁複製的 Markdown 常有一些小毛病，例如 `#標題` 少了空白、`**標籤：**內容` 這種在 CommonMark 無法正確顯示的粗體、`-項目` 少了空白的清單、過多的空行。`dedent-paste` 移除縮排之後，會先判斷文字是否為 Markdown，是的話再用 [markdown-fixer](https://github.com/doggy8088/markdown-fixer) 套用安全修正，例如：
+
+```text
+#標題                    →  # 標題
+**重點：**說明           →  **重點**：說明
+-項目一                  →  - 項目一
+```
+
+Markdown 偵測刻意**保守**，寧可漏判也不誤判：
+
+- 只有同時出現足夠的 Markdown 特徵（標題、清單、表格、fenced code、連結、粗體等）才會套用修正。
+- 看起來像程式碼（Python、shell、Rust、JavaScript、C 等）、log、stack trace、diff、JSON、YAML、TOML、XML 的文字一律不修正，輸出與只移除縮排時完全相同。
+- 修正只動 fenced code、inline code、連結網址與數學式以外的部分。
+- 不會改變行尾格式（Windows 剪貼簿的 CRLF 會保留），也不會增加或移除文字結尾的換行字元，結尾換行規則與上面第 4 點相同。
+- 文件有結構錯誤（例如未關閉的 HTML 註解或 frontmatter）時，markdown-fixer 會拒絕修正，此時貼上的就是只移除縮排的文字。
+
+不想要這項行為時，可以用 `--no-markdown` 參數，或設定環境變數 `DEDENT_PASTE_MARKDOWN=0`（也接受 `false`、`off`、`no`）關閉；命令列參數優先。macOS 可以把下面這行加進 `~/.config/dedent-paste/env`（設定方式見〈[在 Karabiner-Elements / AutoHotkey 中設定環境變數](#在-karabiner-elements--autohotkey-中設定環境變數)〉）：
+
+```sh
+export DEDENT_PASTE_MARKDOWN=0
+```
+
 ## 圖片轉文字（Gemini）
 
 當剪貼簿**沒有文字但有圖片**時，`dedent-paste` 會把圖片送到 [Gemini API](https://ai.google.dev/) 辨識：
@@ -387,6 +413,7 @@ EnvSet "DEDENT_PASTE_LANG", "zh-TW"
 | `DEDENT_PASTE_LOG_FILE` | 記錄檔路徑 | macOS：`~/Library/Logs/dedent-paste.log`；Windows：`%LOCALAPPDATA%\dedent-paste\dedent-paste.log` |
 | `DEDENT_PASTE_NO_PASTE` | 設為 `1`/`true`/`yes`/`on` 時只整理剪貼簿、不送出貼上按鍵（同 `--no-paste`） | 未設定：會貼上 |
 | `DEDENT_PASTE_PASTE_DELAY_MS` | 修飾鍵放開後、送出貼上按鍵前的額外延遲毫秒數（同 `--paste-delay-ms`） | `0` |
+| `DEDENT_PASTE_MARKDOWN` | 設為 `0`/`false`/`off`/`no` 時關閉 Markdown 偵測與修正（同 `--no-markdown`） | 未設定：開啟 |
 
 貼上相關的兩個變數在文字與圖片轉文字兩種流程都適用；`--install` 產生的 Karabiner 規則會先載入 `~/.config/dedent-paste/env`，所以直接寫在該檔案即可，不需修改 `karabiner.json`。
 
@@ -394,7 +421,7 @@ EnvSet "DEDENT_PASTE_LANG", "zh-TW"
 
 ### 記錄檔
 
-每次成功的文字貼上會記錄處理前後的位元組數、字元數與行數（**絕不記錄剪貼簿內容**）；剪貼簿讀寫、貼上與圖片轉文字的錯誤也會寫入。用 `logs` 子命令查看最近的記錄：
+每次成功的文字貼上會記錄處理前後的位元組數、字元數與行數，以及是否偵測為 Markdown、命中的偵測訊號名稱（例如 `atx-heading`、`list`）與修正結果（**絕不記錄剪貼簿內容**）；剪貼簿讀寫、貼上與圖片轉文字的錯誤也會寫入。用 `logs` 子命令查看最近的記錄：
 
 ```sh
 dedent-paste logs          # 預設顯示最近 10 筆

@@ -6,6 +6,8 @@
 cargo build --release
 ```
 
+Markdown detection and fixing come from the [`markdown-fixer`](https://crates.io/crates/markdown-fixer) crate on crates.io; see [Dependencies](#dependencies).
+
 When `./install.sh` is run from a source checkout, it builds the local source and configures Karabiner-Elements to call:
 
 ```text
@@ -25,6 +27,8 @@ cargo fmt --check
 cargo test --locked
 cargo build --release --locked
 ```
+
+Tests named `markdown_fix_*` in `src/lib.rs` exercise `markdown_fixer::fix_document`. Their expected text comes from the reference `markdown-fixer.mjs` run with `ignoreRules: ['MDX002', 'MDX003']`, so a failure there is a parity bug to report to markdown-fixer rather than a wrong expectation. `normalize_keeps_non_markdown_dedent_output_byte_identical` replays every input of the dedent tests through `normalize_text` and requires byte-identical output for everything that is not detected as Markdown.
 
 ## Installer behavior
 
@@ -118,9 +122,9 @@ Pure SemVer, manifest parsing, and install-method detection live in `src/update.
 
 `run()` in `src/main.rs` performs, in order:
 
-1. Resolve `PasteSettings` (`lib.rs::resolve_paste_settings`) from `--no-paste` / `--paste-delay-ms` and the `DEDENT_PASTE_NO_PASTE` / `DEDENT_PASTE_PASTE_DELAY_MS` environment variables. Flags win.
+1. Resolve `PasteSettings` (`lib.rs::resolve_paste_settings`) from `--no-paste` / `--paste-delay-ms` / `--no-markdown` and the `DEDENT_PASTE_NO_PASTE` / `DEDENT_PASTE_PASTE_DELAY_MS` / `DEDENT_PASTE_MARKDOWN` environment variables. Flags win.
 2. Take a non-blocking exclusive `flock` on `$TMPDIR/dedent-paste.lock` (`platform::try_lock_single_instance`). If another instance holds it, log one info line and exit 0. This stops key-repeating hotkey managers (skhd) from spawning many pasting processes.
-3. Read, dedent, and write the clipboard (or run the Gemini image path).
+3. Read the clipboard, run `lib.rs::normalize_text` (see [Markdown normalization](#markdown-normalization)), and write the result back (or run the Gemini image path).
 4. `finish_paste`: return early on `--no-paste`; otherwise `platform::wait_for_modifiers_released` polls `CGEventSourceFlagsState(kCGEventSourceStateCombinedSessionState)` every 10 ms until Shift/Control/Option/Command are all clear or 1 s has passed, then sleeps for the configured delay, then sends `Command+V` via `osascript`.
 
 `CGEventSourceFlagsState` and `flock` are declared with raw `extern "C"` blocks (CoreGraphics framework and libSystem respectively) to avoid adding binding crates. Reading modifier state needs no Accessibility or Input Monitoring permission.
@@ -128,6 +132,17 @@ Pure SemVer, manifest parsing, and install-method detection live in `src/update.
 Why the wait matters: when Karabiner runs the `shell_command`, the physical Option key is usually still down. A `Command+V` posted at that moment reaches the target app as `Command+Option+V`, which most apps ignore or treat as "paste and match style", even though `osascript` exits 0. See issue #1.
 
 Windows and other platforms implement `wait_for_modifiers_released` and `try_lock_single_instance` as no-ops: the documented AutoHotkey scripts already `KeyWait` for the Win keys and use `RunWait`, and AutoHotkey runs one hotkey thread at a time.
+
+## Markdown normalization
+
+`lib.rs::normalize_text(input, markdown)` is the pure text pipeline shared by macOS and Windows:
+
+1. `dedent_text` (including prompt unwrapping and the single-line trailing-newline rule).
+2. If `markdown` is enabled, `markdown_fixer::detect::looks_like_markdown` on the dedented text. Detection is deliberately conservative: code, logs, stack traces, diffs, JSON, YAML, TOML and XML are vetoed, and non-Markdown text is returned exactly as `dedent_text` produced it.
+3. For Markdown, `markdown_fixer::fix_document` runs on the text without its trailing newlines, with `MDX002` (line endings) and `MDX003` (final newline) disabled so CRLF clipboards and the dedent trailing-newline behavior survive. The original trailing newlines are then re-attached.
+4. If markdown-fixer refuses (structural errors such as an unclosed HTML comment), the dedented text is used; this is not an error.
+
+`--no-markdown` or `DEDENT_PASTE_MARKDOWN=0` / `false` / `off` / `no` disables steps 2 to 4. Other values, including an empty value, leave it enabled. The log line records only whether Markdown was detected, the detection signal names, the fix result, and sizes.
 
 ## CI/CD
 
@@ -176,6 +191,8 @@ https://github.com/doggy8088/dedent-paste/releases/latest/download/dedent-paste-
 - Linux artifacts are still published by cargo-dist for consistency, but runtime clipboard/paste integration is not documented.
 
 ## Dependencies
+
+`markdown-fixer` (the library crate of [markdown-fixer](https://github.com/doggy8088/markdown-fixer), published on crates.io) provides Markdown detection and safe fixes. Its default `render-guard` feature pulls in `pulldown-cmark` (without default features) to skip any fix that would change the rendered output. To try unreleased markdown-fixer changes locally, temporarily point the dependency at a checkout with `[patch.crates-io]` instead of committing a path dependency.
 
 The Gemini image-to-text feature adds three runtime crates:
 

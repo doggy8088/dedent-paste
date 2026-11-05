@@ -4,6 +4,11 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+- 新增 Markdown 自動修正：移除縮排後，若文字看起來像 Markdown，會以 markdown-fixer 套用安全修正（例如 `#標題` → `# 標題`、`**標籤：**內容` → `**標籤**：內容`、`-項目` → `- 項目`、合併多餘空行；會改變渲染結果的修正一律跳過）。偵測刻意保守，程式碼、log、stack trace、diff、JSON、YAML、TOML、XML 一律不修正，輸出與先前完全相同；不改變行尾格式（保留 CRLF）與結尾換行；遇到結構錯誤而拒絕修正時，貼上只移除縮排的文字。
+- 新增 `--no-markdown` 參數與 `DEDENT_PASTE_MARKDOWN=0`（也接受 `false`、`off`、`no`）環境變數，可關閉 Markdown 自動修正；命令列參數優先。
+- 記錄檔新增是否偵測為 Markdown、偵測訊號名稱與修正結果，仍不記錄剪貼簿內容。
+- 相依：新增 crates.io 上的 [`markdown-fixer`](https://crates.io/crates/markdown-fixer) 0.1。
+
 ## 0.6.1
 
 - 新增 `logs` 子命令：`dedent-paste logs` 直接顯示最近的記錄（預設 10 筆，由舊到新），可用 `-n <筆數>` 或 `--lines <筆數>` 調整上限；記錄檔不存在時顯示提示，路徑沿用 `DEDENT_PASTE_LOG_FILE` 與各平台預設值。

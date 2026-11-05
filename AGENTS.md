@@ -4,7 +4,7 @@ Guidance for AI coding agents working in this repository.
 
 ## Project overview
 
-`dedent-paste` is a Rust CLI that reads plain text from the clipboard, removes shared indentation from non-blank lines, writes the result back to the clipboard, and triggers paste.
+`dedent-paste` is a Rust CLI that reads plain text from the clipboard, removes shared indentation from non-blank lines, applies safe Markdown fixes when the text is detected as Markdown (via the `markdown-fixer` library), writes the result back to the clipboard, and triggers paste.
 
 Runtime support:
 
@@ -14,9 +14,9 @@ Runtime support:
 
 ## Repository layout
 
-- `src/lib.rs`: pure dedent logic and unit tests.
+- `src/lib.rs`: pure dedent logic, the `normalize_text` pipeline (dedent, then Markdown detection and `markdown_fixer::fix_document`), and unit tests.
 - `src/karabiner.rs`: pure, unit-tested JSON logic for the `--install` / `--uninstall` Karabiner-Elements rule (template from `examples/macos/`, install-path rewriting, rule detection by `shell_command`).
-- `src/main.rs`: command-line parsing (`-h`, `-v`, `-i`, `-u`, `update`) plus platform clipboard and paste integrations.
+- `src/main.rs`: command-line parsing (`-h`, `-v`, `-i`, `-u`, `-n`, `--paste-delay-ms`, `--no-markdown`, `update`, `logs`) plus platform clipboard and paste integrations.
 - `src/setup.rs`: file-system side of `--install` / `--uninstall` (asset file, `karabiner.json` backup and rewrite, `karabiner_cli` lint); macOS only.
 - `src/update.rs`: self-update logic and install-method detection for `dedent-paste update`.
 - `README.md`: user-facing installation and usage docs, primarily Traditional Chinese.
@@ -48,6 +48,8 @@ Do not introduce new build, lint, or test tools unless the task explicitly requi
 ## Coding guidelines
 
 - Keep the dedent algorithm in `src/lib.rs` pure and covered by unit tests.
+- Markdown fixing must stay conservative: text not detected as Markdown must come out of `normalize_text` byte-identical to `dedent_text`, and the Markdown path must not change line endings or add/remove trailing newlines. Detection heuristics live in the markdown-fixer repo (`crates/markdown-fixer/src/detect.rs`), not here.
+- `markdown-fixer` is a crates.io dependency (`0.1`). Do not commit a path dependency; use `[patch.crates-io]` locally when testing unreleased changes (see `DEVELOPMENT.md`).
 - Keep platform-specific clipboard and paste behavior behind `#[cfg(...)]` modules in `src/main.rs`.
 - Preserve current error style: return `Result<_, Box<dyn Error>>` from platform/runtime paths and surface actionable error messages.
 - Treat spaces and tabs as one indentation character each unless intentionally changing the documented behavior.
@@ -58,6 +60,7 @@ Do not introduce new build, lint, or test tools unless the task explicitly requi
 ## Testing expectations
 
 - Add or update unit tests in `src/lib.rs` for dedent behavior changes.
+- For Markdown-path expectations (`markdown_fix_*` tests), generate the expected text with the reference `markdown-fixer.mjs` (`ignoreRules: ['MDX002', 'MDX003']`) instead of guessing.
 - Prefer pure unit tests for text transformation logic; avoid tests that require a live clipboard, Karabiner-Elements, AutoHotkey, or GUI automation.
 - When changing platform integration, consider macOS and Windows behavior separately and preserve unsupported-platform errors.
 
