@@ -183,9 +183,9 @@ checksum = "f9f8bd3e56ce4dfc153cf470fffbfa98c7620958b312ca5c3a4b8d5181fd13c6"
 
 [[package]]
 name = "markdown-fixer"
-version = "0.1.0"
+version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3f094a7988510404015363ad2f600b3f083989398d2991089ad5bb0a068c304c"
+checksum = "17684ec83233a5284228e7a481f785626531c91dd2e5c2cdeda0539b40120078"
 dependencies = [
  "pulldown-cmark",
 ]

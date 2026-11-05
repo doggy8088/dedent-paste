@@ -1544,6 +1544,24 @@ mod tests {
     }
 
     #[test]
+    fn markdown_fix_repairs_quote_wrapped_emphasis() {
+        // `**「X」**` 的成對全形引號會讓 CommonMark 無法配對強調；markdown-fixer
+        // （oracle v1.2.0 起）把兩個引號移到 `**` 外，`「**X**」` 才會正常顯示粗體。
+        let input = "如果您的 Microsoft 帳戶啟用了**「無密碼帳戶」**，請先為帳戶建立密碼：\n1. 前往 [account.microsoft.com/security](https://account.microsoft.com/security) 並登入。\n2. 在「**證明您身分的方式**」（或「**其他安全性選項**」）下方，檢查「**無密碼帳戶 (Passwordless account)**」是否為開啟。若是開啟狀態，請將其**關閉**並設定一組 Microsoft 帳戶密碼。\n";
+        let outcome = normalize_text(input, true);
+        assert!(outcome.markdown_detected);
+        assert!(outcome.markdown_fixed);
+        assert!(!outcome.refused);
+        assert_eq!(
+            outcome.text,
+            "如果您的 Microsoft 帳戶啟用了「**無密碼帳戶**」，請先為帳戶建立密碼：\n1. 前往 [account.microsoft.com/security](https://account.microsoft.com/security) 並登入。\n2. 在「**證明您身分的方式**」（或「**其他安全性選項**」）下方，檢查「**無密碼帳戶 (Passwordless account)**」是否為開啟。若是開啟狀態，請將其**關閉**並設定一組 Microsoft 帳戶密碼。\n"
+        );
+        // 單邊引號與跨行的形狀仍然只報告，不改寫。
+        let one_sided = "這是**「引號**文字\n第二行\n";
+        assert_eq!(normalize_text(one_sided, true).text, one_sided);
+    }
+
+    #[test]
     fn markdown_fix_refusal_falls_back_to_dedented_text() {
         let input = "  # Title\n\n  - a\n  - b\n\n  <!-- todo\n";
         let outcome = normalize_text(input, true);
@@ -1684,12 +1702,21 @@ mod tests {
                 .iter()
                 .any(|prefix| input.starts_with(prefix))
             {
-                // markdown-fixer only separates the heading from the rule above it.
+                // markdown-fixer separates the heading from the rule above it
+                // and, since oracle v1.2.0, moves the paired full-width quotes
+                // outside the emphasis CommonMark cannot pair. Both expected
+                // texts were produced by the reference markdown-fixer.mjs with
+                // `ignoreRules: ['MDX002', 'MDX003']`.
                 let outcome = normalize_text(input, true);
                 assert!(outcome.markdown_detected && !outcome.refused, "{outcome:?}");
                 assert_eq!(
                     outcome.text,
-                    dedent_text(input).replace("──────\n###", "──────\n\n###")
+                    dedent_text(input)
+                        .replace("──────\n###", "──────\n\n###")
+                        .replace(
+                            "**「局部結構化（Micro-format / Key-Value）」**",
+                            "「**局部結構化（Micro-format / Key-Value）**」",
+                        )
                 );
                 continue;
             }

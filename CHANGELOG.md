@@ -4,6 +4,7 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+- Markdown 自動修正行為更新（markdown-fixer 0.1.1、oracle v1.2.0）：`**「X」**` 這類被成對全形引號括住、在 CommonMark 無法配對的強調，現在會自動改成 `「**X**」`，貼上後能正常顯示粗體；單邊引號與跨行的形狀維持只報告不改寫。
 - 新增 Markdown 自動修正：移除縮排後，若文字看起來像 Markdown，會以 markdown-fixer 套用安全修正（例如 `#標題` → `# 標題`、`**標籤：**內容` → `**標籤**：內容`、`-項目` → `- 項目`、合併多餘空行；會改變渲染結果的修正一律跳過）。偵測刻意保守，程式碼、log、stack trace、diff、JSON、YAML、TOML、XML 一律不修正，輸出與先前完全相同；不改變行尾格式（保留 CRLF）與結尾換行；遇到結構錯誤而拒絕修正時，貼上只移除縮排的文字。
 - 新增 `--no-markdown` 參數與 `DEDENT_PASTE_MARKDOWN=0`（也接受 `false`、`off`、`no`）環境變數，可關閉 Markdown 自動修正；命令列參數優先。
 - 記錄檔新增是否偵測為 Markdown、偵測訊號名稱與修正結果，仍不記錄剪貼簿內容。
