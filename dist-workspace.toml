@@ -23,3 +23,6 @@ install-path = "~/.local/bin"
 hosting = "github"
 # Whether to install an updater program
 install-updater = false
+
+[dist.github-custom-runners]
+aarch64-apple-darwin = "macos-15"
