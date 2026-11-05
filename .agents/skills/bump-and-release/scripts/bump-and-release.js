@@ -497,7 +497,9 @@ function syncCargoLock(repoRoot) {
   }
 
   const before = fs.readFileSync(lockPath, "utf8");
-  run("cargo", ["generate-lockfile", "--offline"], { cwd: repoRoot, stream: true, label: "cargo generate-lockfile" });
+  // 只更新工作區成員自身的版本，不重新解析相依；generate-lockfile 會忽略既有 lock，
+  // 遇到已被 yank 的相依版本（例如鎖定中的舊版）就會失敗。
+  run("cargo", ["update", "--workspace", "--offline"], { cwd: repoRoot, stream: true, label: "cargo update --workspace" });
   const after = fs.readFileSync(lockPath, "utf8");
   return before !== after;
 }
