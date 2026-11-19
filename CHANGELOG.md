@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+## 0.6.6
+
+- 相依：將 `markdown-fixer` 升級至 `0.1.3`。
+
 ## 0.6.5
 
 - Markdown 自動修正預設啟用 `heading_list_blank_lines`（`markdown-fixer` `MDX033`），會在標題與緊鄰的清單之間自動補上空行。
