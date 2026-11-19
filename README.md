@@ -405,7 +405,7 @@ EnvSet "DEDENT_PASTE_LANG", "zh-TW"
 |---|---|---|
 | `DEDENT_PASTE_GEMINI_API_KEY` | 本工具專用金鑰（優先） | 未設定時改用 `GEMINI_API_KEY` |
 | `GEMINI_API_KEY` | 共用金鑰 | 兩者皆未設定時功能停用 |
-| `DEDENT_PASTE_GEMINI_MODEL` | 模型 ID | `gemini-3.7-flash` |
+| `DEDENT_PASTE_GEMINI_MODEL` | 模型 ID | `gemini-4-hydrogen` |
 | `DEDENT_PASTE_LANG` | 輸出語言（直接使用，如 `en-US`、`ja`） | 未設定時由 `LANG` 推導（如 `zh_TW.UTF-8` → `zh-TW`）；再無則 `zh-TW` |
 | `DEDENT_PASTE_GEMINI_SYSTEM_PROMPT` | 自訂 system prompt（直接內容，優先於檔案） | 內建 prompt |
 | `DEDENT_PASTE_GEMINI_SYSTEM_PROMPT_FILE` | 自訂 system prompt 檔案路徑 | — |

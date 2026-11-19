@@ -415,7 +415,7 @@ pub const ENV_SYSTEM_PROMPT_FILE: &str = "DEDENT_PASTE_GEMINI_SYSTEM_PROMPT_FILE
 pub const ENV_TIMEOUT_SECS: &str = "DEDENT_PASTE_GEMINI_TIMEOUT_SECS";
 pub const ENV_LOG_FILE: &str = "DEDENT_PASTE_LOG_FILE";
 
-pub const DEFAULT_GEMINI_MODEL: &str = "gemini-3.7-flash";
+pub const DEFAULT_GEMINI_MODEL: &str = "gemini-4-hydrogen";
 pub const DEFAULT_OUTPUT_LANGUAGE: &str = "zh-TW";
 pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(60);
 pub const GEMINI_MAX_REQUEST_BYTES: usize = 20 * 1024 * 1024;
@@ -1231,7 +1231,7 @@ mod tests {
 
     #[test]
     fn model_defaults_and_overrides() {
-        assert_eq!(resolve_model(env(&[])), "gemini-3.7-flash");
+        assert_eq!(resolve_model(env(&[])), "gemini-4-hydrogen");
         assert_eq!(
             resolve_model(env(&[(ENV_GEMINI_MODEL, "gemini-4-pro")])),
             "gemini-4-pro"

@@ -9,7 +9,7 @@ use dedent_paste::update::{self, UpdateOptions};
 use dedent_paste::{
     GeminiError, NormalizeOutcome, PasteCliOverrides, PasteSettings, format_log_line,
     format_timestamp, is_silent_error, normalize_text, resolve_api_key, resolve_gemini_settings,
-    resolve_log_path, resolve_paste_settings, tail_lines,
+    resolve_log_path, resolve_model, resolve_paste_settings, tail_lines,
 };
 
 mod gemini;
@@ -304,16 +304,18 @@ fn run(overrides: PasteCliOverrides) -> Result<(), Box<dyn Error>> {
 
             platform::write_clipboard(&outcome.text)?;
             finish_paste(&settings)?;
-            // Only sizes and detection signal names are logged; clipboard
-            // content may be sensitive.
+            // Only sizes, detection signal names, and the configured model ID
+            // are logged; clipboard content may be sensitive.
+            let model = resolve_model(|name| std::env::var(name).ok());
             log_line(
                 "info",
                 &format!(
-                    "text dedented{}; before: {}; after: {}; {}",
-                    if settings.no_paste { "" } else { " and pasted" },
+                    "text dedented{}; before: {}; after: {}; {}; model: {}",
+                    paste_suffix(&settings),
                     text_stats(&text),
                     text_stats(&outcome.text),
-                    markdown_summary(&settings, &outcome)
+                    markdown_summary(&settings, &outcome),
+                    model
                 ),
             );
             Ok(())
@@ -342,6 +344,11 @@ fn markdown_summary(settings: &PasteSettings, outcome: &NormalizeOutcome) -> Str
         "detected, unchanged"
     };
     format!("markdown: {result} (signals: {signals})")
+}
+
+/// Suffix indicating whether the processed clipboard content was pasted.
+fn paste_suffix(settings: &PasteSettings) -> &'static str {
+    if settings.no_paste { "" } else { " and pasted" }
 }
 
 /// Content-free summary of a text payload for logging.
@@ -403,7 +410,19 @@ fn image_to_text(settings: &PasteSettings) -> Result<(), Box<dyn Error>> {
     let text = gemini::generate_text_from_image(&gemini_settings, &image)?;
 
     platform::write_clipboard(&text)?;
-    finish_paste(settings)
+    finish_paste(settings)?;
+    log_line(
+        "info",
+        &format!(
+            "image converted to text{}; image: {} ({} bytes); after: {}; model: {}",
+            paste_suffix(settings),
+            image.mime_type,
+            image.data.len(),
+            text_stats(&text),
+            gemini_settings.model
+        ),
+    );
+    Ok(())
 }
 
 fn log_line(level: &str, message: &str) {
