@@ -112,6 +112,7 @@ pub fn normalize_text(input: &str, markdown: bool) -> NormalizeOutcome {
     let trailing_newlines = &dedented[body.len()..];
     let options = markdown_fixer::Options {
         ignore_rules: Some(MARKDOWN_IGNORED_RULES.map(String::from).to_vec()),
+        heading_list_blank_lines: true,
         ..markdown_fixer::Options::default()
     };
     let fixed = markdown_fixer::fix_document(body, &options);
@@ -1540,6 +1541,25 @@ mod tests {
         assert_eq!(
             normalize_text("**優點：**速度快\n**缺點：**很慢", true).text,
             "**優點**：速度快\n**缺點**：很慢"
+        );
+    }
+
+    #[test]
+    fn markdown_fix_adds_blank_line_between_heading_and_list() {
+        let input = "\
+# 本使用的來源貼上內容，轉換會在這台裝置上完成。
+1. 使用 `⌘+C` 複製富文本內容
+2. 在這個頁面使用 `⌘+V` 貼上";
+        let outcome = normalize_text(input, true);
+        assert!(outcome.markdown_detected);
+        assert!(outcome.markdown_fixed);
+        assert_eq!(
+            outcome.text,
+            "\
+# 本使用的來源貼上內容，轉換會在這台裝置上完成。
+
+1. 使用 `⌘+C` 複製富文本內容
+2. 在這個頁面使用 `⌘+V` 貼上"
         );
     }
 
