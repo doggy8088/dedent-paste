@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+## 0.6.4
+
+- 相依：將 `markdown-fixer` 升級至 `0.1.2`。
+
 ## 0.6.3
 
 - 將 `DEDENT_PASTE_GEMINI_MODEL` 預設模型 ID 更新為 `gemini-4-hydrogen`。
