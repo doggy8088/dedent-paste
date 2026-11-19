@@ -4,6 +4,13 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+## 0.6.3
+
+- 將 `DEDENT_PASTE_GEMINI_MODEL` 預設模型 ID 更新為 `gemini-4-hydrogen`。
+- 圖片轉文字成功貼上後新增 `info` 執行記錄（包含圖片 MIME 類型、圖片大小、輸出文字統計與使用的模型 ID）；文字流程的執行記錄同步補上目前解析到的模型 ID。
+- 相依：Windows 剪貼簿相依套件 `clipboard-win` 升級至 `5.4.3`。
+- CI／發佈：`aarch64-apple-darwin` 發佈改用 `macos-15` runner，並修正 `bump-and-release` 腳本改用 `cargo update --workspace` 同步 `Cargo.lock`。
+
 ## 0.6.2
 
 - Markdown 自動修正行為更新（markdown-fixer 0.1.1、oracle v1.2.0）：`**「X」**` 這類被成對全形引號括住、在 CommonMark 無法配對的強調，現在會自動改成 `「**X**」`，貼上後能正常顯示粗體；單邊引號與跨行的形狀維持只報告不改寫。
